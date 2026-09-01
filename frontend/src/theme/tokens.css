@@ -65,6 +65,16 @@
 
   --blur-glass: 18px;
 
+  /* Shared hover/tap timing for plain-CSS `:hover` transitions, kept in sync
+     with `frontend/src/theme/motion.ts`'s `hoverTransition` (the preset
+     framer-motion components pass via `whileHover`/`whileTap`) so a
+     CSS-driven hover (background/color/opacity fades on things like sidebar
+     rows and menu items) reads at the same speed as a JS-driven one (the
+     scale/lift on sidebar buttons, the command palette's item entrance).
+     Not theme-scoped — same feel in every theme. */
+  --duration-hover: 140ms;
+  --ease-hover: ease-out;
+
   color-scheme: light;
 }
 

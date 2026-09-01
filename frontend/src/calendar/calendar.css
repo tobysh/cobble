@@ -32,6 +32,9 @@
   width: 28px;
   height: 28px;
   cursor: pointer;
+  transition:
+    background-color var(--duration-hover) var(--ease-hover),
+    color var(--duration-hover) var(--ease-hover);
 }
 .calendar-nav button:hover {
   background: var(--bg-surface-hover);
@@ -74,9 +77,9 @@
   cursor: pointer;
   position: relative;
   transition:
-    background-color 220ms ease,
-    border-color 220ms ease,
-    transform 220ms ease;
+    background-color var(--duration-hover) var(--ease-hover),
+    border-color var(--duration-hover) var(--ease-hover),
+    transform var(--duration-hover) var(--ease-hover);
 }
 .calendar-cell:hover {
   background: var(--bg-surface-hover);
@@ -111,7 +114,7 @@
   display: flex;
   color: var(--text-tertiary);
   opacity: 0;
-  transition: opacity 220ms ease;
+  transition: opacity var(--duration-hover) var(--ease-hover);
 }
 .calendar-cell:hover .calendar-add {
   opacity: 1;
