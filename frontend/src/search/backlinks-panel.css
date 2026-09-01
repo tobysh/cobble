@@ -1,0 +1,56 @@
+.backlinks-panel {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.backlinks-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.backlinks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.backlink-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-family: inherit;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.backlink-item:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.backlink-icon {
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+.backlink-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

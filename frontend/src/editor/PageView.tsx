@@ -24,6 +24,7 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { BacklinksPanel } from '../search/BacklinksPanel'
 import { useWorkspace } from '../state/store'
 import type { Block, BlockId, BlockType, PageId } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
@@ -397,6 +398,8 @@ export function PageView({ pageId }: { pageId: PageId }) {
       <LexicalComposer initialConfig={initialConfig}>
         <EditorBody pageId={pageId} idMap={idMapRef.current} />
       </LexicalComposer>
+
+      <BacklinksPanel pageId={pageId} />
     </div>
   )
 }

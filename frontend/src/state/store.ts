@@ -13,6 +13,7 @@ type View =
   | { kind: 'empty' }
   | { kind: 'page'; pageId: PageId }
   | { kind: 'calendar' }
+  | { kind: 'trash' }
 
 interface WorkspaceState {
   theme: Theme
@@ -24,6 +25,12 @@ interface WorkspaceState {
   view: View
   openPage: (pageId: PageId) => void
   openCalendar: () => void
+
+  /** Pages currently sitting in `.cobble/trash/` — loaded lazily by `openTrash`. */
+  trash: Page[]
+  openTrash: () => void
+  loadTrash: () => Promise<void>
+  restoreFromTrash: (pageId: PageId) => Promise<void>
 
   expandedTree: Set<string>
   toggleTreeExpanded: (pageId: PageId) => void
@@ -62,6 +69,35 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
   view: { kind: 'loading' },
   openPage: (pageId) => set({ view: { kind: 'page', pageId }, paletteOpen: false }),
   openCalendar: () => set({ view: { kind: 'calendar' }, paletteOpen: false }),
+
+  trash: [],
+  openTrash: () => {
+    set({ view: { kind: 'trash' }, paletteOpen: false })
+    void get().loadTrash()
+  },
+  loadTrash: async () => {
+    const trash = await api.listTrash()
+    set({ trash })
+  },
+  // Restoring can't assume the page's old parent still exists (it may have
+  // been trashed too), but `childKey`/`children` degenerate gracefully for
+  // that case: the restored page just becomes untracked by any parent's
+  // child list until the tree is next fully reloaded, same as any other
+  // orphaned page. It still shows up via `pages`, and the trash list drops it.
+  restoreFromTrash: async (pageId) => {
+    const restored = await api.restorePage(pageId)
+    set((s) => {
+      const key = childKey(restored.parentId)
+      const siblings = s.children[key] ?? []
+      return {
+        pages: { ...s.pages, [restored.id]: restored },
+        children: siblings.includes(restored.id)
+          ? s.children
+          : { ...s.children, [key]: [...siblings, restored.id] },
+        trash: s.trash.filter((p) => p.id !== pageId),
+      }
+    })
+  },
 
   expandedTree: new Set(),
   toggleTreeExpanded: (pageId) =>

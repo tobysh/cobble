@@ -4,6 +4,7 @@ import { CommandPalette } from './command-palette/CommandPalette'
 import { PageView } from './editor/PageView'
 import { Sidebar } from './sidebar/Sidebar'
 import { useWorkspace } from './state/store'
+import { TrashPanel } from './trash/TrashPanel'
 import './theme/tokens.css'
 import './App.css'
 
@@ -25,6 +26,8 @@ function MainView() {
       )
     case 'calendar':
       return <CalendarView />
+    case 'trash':
+      return <TrashPanel />
     case 'page':
       // Keyed by pageId so switching pages remounts the Lexical editor with
       // a fresh `initialConfig` instead of trying to swap its content in

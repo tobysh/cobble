@@ -73,9 +73,11 @@ export function Sidebar() {
   const theme = useWorkspace((s) => s.theme)
   const setTheme = useWorkspace((s) => s.setTheme)
   const openCalendar = useWorkspace((s) => s.openCalendar)
+  const openTrash = useWorkspace((s) => s.openTrash)
   const setPaletteOpen = useWorkspace((s) => s.setPaletteOpen)
   const createPage = useWorkspace((s) => s.createPage)
   const isCalendarActive = useWorkspace((s) => s.view.kind === 'calendar')
+  const isTrashActive = useWorkspace((s) => s.view.kind === 'trash')
   const [newPageHover, setNewPageHover] = useState(false)
 
   return (
@@ -108,6 +110,18 @@ export function Sidebar() {
       >
         <Calendar size={15} />
         <span>Calendar</span>
+      </motion.button>
+
+      <motion.button
+        type="button"
+        className={`sidebar-nav-item${isTrashActive ? ' sidebar-nav-item--active' : ''}`}
+        onClick={openTrash}
+        whileHover={hoverLift}
+        whileTap={tapShrink}
+        transition={hoverTransition}
+      >
+        <Trash2 size={15} />
+        <span>Trash</span>
       </motion.button>
 
       <div className="sidebar-section-label">Workspace</div>

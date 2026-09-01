@@ -37,6 +37,20 @@ interface BackendPageSummary {
   icon: string | null
 }
 
+// Mirrors `commands::search::SearchHit` in `src-tauri/src/commands/search.rs`.
+interface BackendSearchHit {
+  block_id: string
+  page_id: PageId
+  text: string
+}
+
+/** A single full-text search hit against a page's block content. */
+export interface SearchHit {
+  blockId: string
+  pageId: PageId
+  text: string
+}
+
 const DEFAULT_ICON = '📄'
 
 function dateFromProperties(props?: Record<string, PropertyValue>): string | undefined {
@@ -105,5 +119,28 @@ export const api = {
 
   async deletePage(id: PageId): Promise<void> {
     await invoke<void>('delete_page', { id })
+  },
+
+  /** Full-text search over every page's block content (`cobble-index` FTS5). */
+  async searchPages(query: string): Promise<SearchHit[]> {
+    const hits = await invoke<BackendSearchHit[]>('search_pages', { query })
+    return hits.map((h) => ({ blockId: h.block_id, pageId: h.page_id, text: h.text }))
+  },
+
+  /** Pages that link to `id` via a relation property or a sub-page block. */
+  async getBacklinks(id: PageId): Promise<PageId[]> {
+    return invoke<PageId[]>('get_backlinks', { id })
+  },
+
+  /** Pages currently sitting in `.cobble/trash/`. */
+  async listTrash(): Promise<Page[]> {
+    const pages = await invoke<BackendPage[]>('list_trash')
+    return pages.map(fromBackendPage)
+  },
+
+  /** Moves a trashed page's file back into `pages/` and reindexes it. */
+  async restorePage(id: PageId): Promise<Page> {
+    const page = await invoke<BackendPage>('restore_page', { id })
+    return fromBackendPage(page)
   },
 }

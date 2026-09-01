@@ -1,0 +1,75 @@
+.trash-view {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 48px 120px;
+}
+
+.trash-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: var(--text-primary);
+}
+.trash-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.trash-empty {
+  color: var(--text-tertiary);
+  font-size: 13.5px;
+  padding: 12px 2px;
+}
+
+.trash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trash-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+}
+
+.trash-item-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.trash-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 13.5px;
+}
+
+.trash-restore {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-canvas);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-family: inherit;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.trash-restore:hover {
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  background: var(--accent-soft);
+}
