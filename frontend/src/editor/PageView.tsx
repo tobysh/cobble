@@ -24,9 +24,10 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { BoardView } from '../database/BoardView'
 import { TableView } from '../database/TableView'
 import { useWorkspace } from '../state/store'
-import type { Block, BlockId, BlockType, PageId } from '../state/types'
+import type { Block, BlockId, BlockType, PageId, ViewKind } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
 import { editorStateToBlocks, populateEditorFromBlocks } from './serialization'
 import { SlashMenu } from './SlashMenu'
@@ -357,6 +358,11 @@ export function PageView({ pageId }: { pageId: PageId }) {
   const page = useWorkspace((s) => s.pages[pageId])
   const updatePageTitle = useWorkspace((s) => s.updatePageTitle)
   const idMapRef = useRef<Map<NodeKey, BlockId>>(new Map())
+  // Minimal view switcher for database pages — table/board today, with
+  // list/gallery/calendar (see `ViewKind`) expected to add their own tab
+  // here as separate M3 tasks land. Local to this component (not persisted)
+  // since there's no view-config system yet, per the task scope.
+  const [databaseView, setDatabaseView] = useState<ViewKind>('table')
 
   const initialBlocks = useMemo<Block[]>(() => page?.blocks ?? [], [page])
 
@@ -395,15 +401,35 @@ export function PageView({ pageId }: { pageId: PageId }) {
     </div>
   )
 
-  // A database page (`kind: 'database'`) renders its schema as a table
-  // instead of the block editor — see `frontend/src/database/TableView.tsx`.
-  // Board/list/gallery/calendar views are later M3 tasks that will branch on
-  // the page's *view* selection here too; table is the only one today.
+  // A database page (`kind: 'database'`) renders its schema as one of
+  // several views instead of the block editor — see `frontend/src/database/`.
+  // List/gallery/calendar are separate M3 tasks expected to add their own
+  // tab + branch below; table and board are wired here.
   if (page.kind === 'database') {
     return (
       <div className="page-view page-view--database">
         {header}
-        <TableView databaseId={pageId} schema={page.databaseSchema} />
+        <div className="db-view-tabs">
+          <button
+            type="button"
+            className={databaseView === 'table' ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+            onClick={() => setDatabaseView('table')}
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            className={databaseView === 'board' ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+            onClick={() => setDatabaseView('board')}
+          >
+            Board
+          </button>
+        </div>
+        {databaseView === 'board' ? (
+          <BoardView databaseId={pageId} schema={page.databaseSchema} />
+        ) : (
+          <TableView databaseId={pageId} schema={page.databaseSchema} />
+        )}
       </div>
     )
   }

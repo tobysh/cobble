@@ -5,6 +5,33 @@
   padding: 0 4px;
 }
 
+/* View switcher tabs — shared by table/board (and any view a sibling task
+   adds here). Kept intentionally minimal, see `editor/PageView.tsx`. */
+.db-view-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px 10px;
+}
+
+.db-view-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.db-view-tab:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+.db-view-tab--active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
 .db-empty-state {
   color: var(--text-tertiary);
   padding: 24px 4px;
@@ -246,4 +273,191 @@
 }
 .db-tag-remove:hover {
   opacity: 1;
+}
+
+/* Board / kanban view. */
+.db-board-view {
+  padding: 0 4px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.db-board-toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.db-board-groupby {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+
+.db-board-groupby-select {
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+}
+.db-board-groupby-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.db-board-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.db-board-column {
+  flex: 0 0 260px;
+  width: 260px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+.db-board-column--drag-over {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.db-board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 10px;
+}
+
+.db-board-column-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-board-column-count {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  background: var(--bg-canvas);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+}
+
+.db-board-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 12px;
+}
+
+.db-board-card {
+  position: relative;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 8px 8px 6px;
+  cursor: grab;
+  box-shadow: var(--shadow-1);
+}
+.db-board-card:hover {
+  border-color: var(--border-strong);
+}
+.db-board-card--dragging {
+  opacity: 0.5;
+}
+
+.db-board-card-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+}
+.db-board-card:hover .db-board-card-delete {
+  opacity: 1;
+}
+.db-board-card-delete:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.db-board-card-title {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: 500;
+  font-size: 13.5px;
+  padding: 2px 16px 2px 2px;
+  outline: none;
+}
+.db-board-card-title:focus {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.db-board-card-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.db-board-card-property {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.db-board-card-property-label {
+  color: var(--text-tertiary);
+  flex: 0 0 auto;
+  min-width: 56px;
+}
+
+.db-board-card-property > .db-board-card-property-label + * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.db-board-add-card {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  padding: 6px 8px;
+  font-size: 12.5px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.db-board-add-card:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
 }
