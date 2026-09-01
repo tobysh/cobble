@@ -1,4 +1,4 @@
-use cobble_core::{BlockId, PageId};
+use cobble_core::{BlockId, PageId, PageKind};
 use rusqlite::{params, Connection};
 
 use crate::error::Result;
@@ -9,6 +9,17 @@ pub struct SearchHit {
     pub block_id: BlockId,
     pub page_id: PageId,
     pub text: String,
+}
+
+/// The listing shape the page tree/sidebar needs — id, kind, title, icon,
+/// parent — sourced from the index instead of a full per-page file read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PageSummary {
+    pub id: PageId,
+    pub parent_id: Option<PageId>,
+    pub kind: PageKind,
+    pub title: String,
+    pub icon: Option<String>,
 }
 
 /// Pages whose `parent_id` matches, ordered by title. `None` returns
@@ -22,6 +33,43 @@ pub fn list_children(conn: &Connection, parent_id: Option<PageId>) -> Result<Vec
 
     rows.map(|r| Ok(parse_page_id(r?)))
         .collect::<Result<Vec<_>>>()
+}
+
+/// Same shape as `list_children`, but returns full listing summaries in one
+/// query instead of just IDs — what the page tree/sidebar actually renders.
+pub fn list_children_summaries(
+    conn: &Connection,
+    parent_id: Option<PageId>,
+) -> Result<Vec<PageSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, parent_id, kind, title, icon FROM pages
+         WHERE parent_id IS ?1 ORDER BY title COLLATE NOCASE",
+    )?;
+    let rows = stmt.query_map(params![parent_id.map(|p| p.to_string())], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, Option<String>>(4)?,
+        ))
+    })?;
+
+    let mut out = Vec::new();
+    for row in rows {
+        let (id, parent_id, kind, title, icon) = row?;
+        out.push(PageSummary {
+            id: parse_page_id(id),
+            parent_id: parent_id.map(parse_page_id),
+            kind: match kind.as_str() {
+                "database" => PageKind::Database,
+                _ => PageKind::Page,
+            },
+            title,
+            icon,
+        });
+    }
+    Ok(out)
 }
 
 /// Pages carrying a reserved `date` property whose value falls in

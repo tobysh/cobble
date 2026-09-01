@@ -3,7 +3,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-use cobble_core::{Block, Page, PropertyValue};
+use cobble_core::{Block, Page, PageId, PropertyValue};
 use rusqlite::{params, Connection};
 
 use crate::error::Result;
@@ -79,6 +79,89 @@ pub fn rebuild_all(conn: &mut Connection, pages_dir: &Path) -> Result<RebuildSta
 
 fn count_blocks(blocks: &[Block]) -> usize {
     blocks.iter().map(|b| 1 + count_blocks(&b.children)).sum()
+}
+
+/// Outcome of an incremental `reindex_file()` call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReindexOutcome {
+    /// The file was read, parsed, and its rows written to the index.
+    Indexed,
+    /// The file couldn't be read or parsed — treated the same way
+    /// `rebuild_all` treats a corrupt file: not a hard error, since a
+    /// transient read (e.g. mid-write) or a genuinely corrupt file is
+    /// recoverable via `rebuild_all` rather than something that should take
+    /// the index down.
+    Skipped,
+}
+
+/// Re-reads a single page file and replaces just its rows in the index
+/// (stale rows for that page deleted first, then reinserted from the
+/// current file content) — every other page's rows are untouched. This is
+/// the incremental counterpart to `rebuild_all`, driven by `cobble-watcher`'s
+/// `Created`/`Modified` events and by write commands right after their own
+/// atomic file write, per the write path in
+/// `docs/ARCHITECTURE.md#file-format--storage`.
+pub fn reindex_file(conn: &mut Connection, path: &Path) -> Result<ReindexOutcome> {
+    let bytes = match fs::read(path) {
+        Ok(b) => b,
+        Err(_) => return Ok(ReindexOutcome::Skipped),
+    };
+    let page: Page = match serde_json::from_slice(&bytes) {
+        Ok(p) => p,
+        Err(_) => return Ok(ReindexOutcome::Skipped),
+    };
+
+    let tx = conn.transaction()?;
+    delete_page_rows(&tx, page.id)?;
+    let hash = content_hash(&bytes);
+    insert_page(&tx, &page, path, &hash)?;
+    tx.commit()?;
+    Ok(ReindexOutcome::Indexed)
+}
+
+/// Removes a page file's rows from the index without re-reading it — used
+/// when `cobble-watcher` reports a `Removed` event (the file is already
+/// gone by the time the event is handled) and when a write command trashes
+/// a page. The page ID is recovered from the `<slug>-<ulid>.cobble.json`
+/// filename convention (see `cobble_storage::file_format::page_file_name`),
+/// not the file content. A path that doesn't match the convention is a
+/// no-op — nothing in the index could have come from it.
+pub fn remove_file(conn: &mut Connection, path: &Path) -> Result<()> {
+    let Some(id) = page_id_from_file_name(path) else {
+        return Ok(());
+    };
+    let tx = conn.transaction()?;
+    delete_page_rows(&tx, id)?;
+    tx.commit()?;
+    Ok(())
+}
+
+fn page_id_from_file_name(path: &Path) -> Option<PageId> {
+    let name = path.file_name()?.to_str()?;
+    let stem = name.strip_suffix(".cobble.json")?;
+    let (_, ulid_str) = stem.rsplit_once('-')?;
+    ulid_str.parse().ok()
+}
+
+/// Deletes every row belonging to `page_id` across all tables. Links whose
+/// *target* is `page_id` (other pages' relations/sub-pages pointing at it)
+/// are deliberately left alone — they reflect the *other* page's own file
+/// content and are only ever refreshed by reindexing that other page.
+fn delete_page_rows(conn: &Connection, page_id: PageId) -> Result<()> {
+    let id = page_id.to_string();
+    conn.execute("DELETE FROM pages WHERE id = ?1", params![id])?;
+    conn.execute("DELETE FROM blocks WHERE page_id = ?1", params![id])?;
+    conn.execute("DELETE FROM properties WHERE page_id = ?1", params![id])?;
+    conn.execute(
+        "DELETE FROM database_schemas WHERE page_id = ?1",
+        params![id],
+    )?;
+    conn.execute(
+        "DELETE FROM links WHERE source_page_id = ?1",
+        params![id],
+    )?;
+    conn.execute("DELETE FROM blocks_fts WHERE page_id = ?1", params![id])?;
+    Ok(())
 }
 
 fn insert_page(conn: &Connection, page: &Page, path: &Path, hash: &str) -> Result<()> {
