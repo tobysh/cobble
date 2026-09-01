@@ -19,7 +19,7 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 | Task | Status | Owner / branch | Notes |
 |---|---|---|---|
 | `cobble-core`: `Page`/`Block` domain types | done | main (solo session) | `Page`/`Block`/`PropertyValue`/ULID-based `PageId`/`BlockId`; `database_schema` left as opaque JSON pending M3; round-trip tests pass |
-| `cobble-storage`: file format read/write, atomic writes, ULID IDs | todo | | |
+| `cobble-storage`: file format read/write, atomic writes, ULID IDs | claimed | agent/cobble-storage | |
 | `cobble-index`: SQLite schema + `rebuild_all()` | todo | | |
 | `cobble-watcher`: FS watch → incremental reindex | todo | | |
 | Tauri commands: `create_page`, `get_page`, `update_page_blocks`, `list_children`, `move_page`, `delete_page` | todo | | |
