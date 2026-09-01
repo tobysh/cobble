@@ -63,6 +63,21 @@
   user-select: none;
 }
 
+/* Teaches the slash menu on any empty paragraph beyond the very first one —
+   `.editor-placeholder` above only covers a wholly-empty page (Lexical's
+   built-in placeholder hides once the doc has more than one block). Lexical
+   marks an empty element's caret-holder `<br>` with
+   `data-lexical-managed-linebreak`, so this fires precisely on blank
+   paragraphs and disappears the instant real text (including a leading '/')
+   is typed. `:not(:only-child)` excludes the single-empty-page case so the
+   two hints never stack. */
+.editor-content .block-text:has(> br[data-lexical-managed-linebreak]):not(:only-child)::before {
+  content: "Type '/' for commands";
+  color: var(--text-tertiary);
+  pointer-events: none;
+  user-select: none;
+}
+
 .block-text {
   color: var(--text-primary);
   font-size: 15.5px;
