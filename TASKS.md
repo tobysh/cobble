@@ -20,8 +20,8 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 |---|---|---|---|
 | `cobble-core`: `Page`/`Block` domain types | done | main (solo session) | `Page`/`Block`/`PropertyValue`/ULID-based `PageId`/`BlockId`; `database_schema` left as opaque JSON pending M3; round-trip tests pass |
 | `cobble-storage`: file format read/write, atomic writes, ULID IDs | done | merged to `main` via PR #1 (`agent/cobble-storage`) | Conflict resolved — `agent/task1`'s independent duplicate was not merged; that worktree/branch can be dropped. `Workspace::open/write_page/read_page/read_page_by_id/find_page_path/list_pages/trash_page`, 17 tests passing |
-| `cobble-index`: SQLite schema + `rebuild_all()` | in-progress (unpushed as of last check) | `agent/task0` | local-only — push the branch and merge to `main` so this row reflects reality |
-| `cobble-watcher`: FS watch → incremental reindex | claimed (unpushed at claim time) | `agent/cobble-watcher` | branch existed locally but hadn't reached `origin` yet — push it |
+| `cobble-index`: SQLite schema + `rebuild_all()` | in-progress | `agent/task0` (rebased onto main, PR pending) | `pages`/`blocks`/`properties`/`database_schemas`/`links`/`blocks_fts` (FTS5); `rebuild_all()` rescans `*.cobble.json`, skips corrupt files without aborting; query helpers (`list_children`, `pages_with_date_between`, `search_blocks`, `backlinks`); reads files directly rather than depending on `cobble-storage` — fine, both just read the same on-disk format independently |
+| `cobble-watcher`: FS watch → incremental reindex | in-progress | `agent/cobble-watcher` (pushed) | debounced FS watch with content-hash reconciliation |
 | Tauri commands: `create_page`, `get_page`, `update_page_blocks`, `list_children`, `move_page`, `delete_page` | in-progress | `agent/cobble-tauri-commands` (pushed) | 7 tests passing against `cobble-storage`; not yet merged to `main` — ready whenever |
 | Frontend: sidebar page tree | todo | | |
 | Frontend: Lexical editor shell, minimal node set (paragraph/heading/todo/divider) | todo | | |
