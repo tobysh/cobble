@@ -13,6 +13,8 @@ import { INSERT_CHECK_LIST_COMMAND } from '@lexical/list'
 import { $setBlocksType } from '@lexical/selection'
 import { $createHeadingNode } from '@lexical/rich-text'
 import {
+  $getNodeByKey,
+  $getRoot,
   $getSelection,
   $isParagraphNode,
   $isRangeSelection,
@@ -21,7 +23,7 @@ import {
   type EditorState,
   type NodeKey,
 } from 'lexical'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import { useWorkspace } from '../state/store'
 import type { Block, BlockId, BlockType, PageId } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
@@ -142,6 +144,126 @@ function EditorBody({
     [editor],
   )
 
+  // --- Drag-to-reorder ----------------------------------------------------
+  // One drag handle per top-level Lexical node (== one persisted `Block`,
+  // except a run of `todo` blocks which collapses into a single check-list
+  // node — see serialization.ts — so the whole list drags as a unit).
+  // There's no per-block wrapper element to attach a handle to (this editor
+  // is one Lexical document, not a list of block components), so handles
+  // are positioned from live DOM rects the same way the slash menu is.
+  //
+  // Reordering moves the actual `LexicalNode` — `ElementNode.append()` on a
+  // node that's already attached relocates it instead of duplicating it —
+  // so NodeKeys, and therefore `idMap`'s NodeKey -> BlockId mapping, never
+  // change. Only position changes, per "block IDs are forever" (CLAUDE.md).
+  // The resulting editor-state change flows through the same debounced
+  // `OnChangePlugin` -> `saveBlocks` -> `update_page_blocks` path as any
+  // other edit, so it persists through the real save path, not local state.
+  const [blockRects, setBlockRects] = useState<{ key: NodeKey; top: number; height: number }[]>([])
+  const [draggingKey, setDraggingKey] = useState<NodeKey | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
+
+  const recomputeBlockRects = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return
+    const containerRect = container.getBoundingClientRect()
+    const rects: { key: NodeKey; top: number; height: number }[] = []
+    editor.getEditorState().read(() => {
+      for (const node of $getRoot().getChildren()) {
+        const el = editor.getElementByKey(node.getKey())
+        if (!el) continue
+        const elRect = el.getBoundingClientRect()
+        rects.push({ key: node.getKey(), top: elRect.top - containerRect.top, height: elRect.height })
+      }
+    })
+    setBlockRects(rects)
+  }, [editor])
+
+  useEffect(() => {
+    recomputeBlockRects()
+    const unregister = editor.registerUpdateListener(() => recomputeBlockRects())
+    window.addEventListener('resize', recomputeBlockRects)
+    return () => {
+      unregister()
+      window.removeEventListener('resize', recomputeBlockRects)
+    }
+  }, [editor, recomputeBlockRects])
+
+  const handleDragStart = useCallback(
+    (key: NodeKey) => (e: DragEvent) => {
+      setDraggingKey(key)
+      e.dataTransfer.effectAllowed = 'move'
+      e.dataTransfer.setData('text/plain', key)
+    },
+    [],
+  )
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingKey(null)
+    setDropIndex(null)
+  }, [])
+
+  const handleContainerDragOver = useCallback(
+    (e: DragEvent) => {
+      if (!draggingKey) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'move'
+      const container = containerRef.current
+      if (!container) return
+      const y = e.clientY - container.getBoundingClientRect().top
+      let idx = blockRects.length
+      for (let i = 0; i < blockRects.length; i++) {
+        if (y < blockRects[i].top + blockRects[i].height / 2) {
+          idx = i
+          break
+        }
+      }
+      setDropIndex(idx)
+    },
+    [draggingKey, blockRects],
+  )
+
+  const handleDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      const sourceKey = draggingKey
+      const targetIndex = dropIndex
+      setDraggingKey(null)
+      setDropIndex(null)
+      if (!sourceKey || targetIndex === null) return
+
+      editor.update(() => {
+        const root = $getRoot()
+        const originalKeys = root.getChildren().map((n) => n.getKey())
+        if (!originalKeys.includes(sourceKey)) return
+
+        const withoutSource = originalKeys.filter((k) => k !== sourceKey)
+        const targetKey = targetIndex < originalKeys.length ? originalKeys[targetIndex] : null
+        const insertAt =
+          targetKey && targetKey !== sourceKey ? withoutSource.indexOf(targetKey) : withoutSource.length
+        const newOrder = [...withoutSource.slice(0, insertAt), sourceKey, ...withoutSource.slice(insertAt)]
+
+        if (newOrder.join('|') === originalKeys.join('|')) return
+
+        // Re-appending each node in the desired order moves it to the end
+        // of `root`'s children (it's already attached, so this relocates
+        // rather than clones it), leaving the tree in `newOrder` once done.
+        for (const key of newOrder) {
+          const node = $getNodeByKey(key)
+          if (node) root.append(node)
+        }
+      })
+    },
+    [editor, draggingKey, dropIndex],
+  )
+
+  const dropIndicatorTop =
+    dropIndex === null
+      ? null
+      : dropIndex < blockRects.length
+        ? blockRects[dropIndex].top - 3
+        : (blockRects[blockRects.length - 1]?.top ?? 0) + (blockRects[blockRects.length - 1]?.height ?? 0) + 3
+
   const flushSave = useCallback(
     (editorState: EditorState) => {
       editorState.read(() => {
@@ -178,7 +300,34 @@ function EditorBody({
       onClick={(e) => {
         if (e.target === containerRef.current) editor.focus()
       }}
+      onDragOver={handleContainerDragOver}
+      onDrop={handleDrop}
     >
+      <div className="block-gutter">
+        {blockRects.map((rect) => (
+          <div
+            key={rect.key}
+            className={
+              draggingKey === rect.key ? 'block-drag-handle block-drag-handle--dragging' : 'block-drag-handle'
+            }
+            style={{ top: rect.top + rect.height / 2 - 9 }}
+            draggable
+            onDragStart={handleDragStart(rect.key)}
+            onDragEnd={handleDragEnd}
+            title="Drag to reorder"
+          >
+            <svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">
+              <circle cx="3" cy="3" r="1.3" />
+              <circle cx="7" cy="3" r="1.3" />
+              <circle cx="3" cy="8" r="1.3" />
+              <circle cx="7" cy="8" r="1.3" />
+              <circle cx="3" cy="13" r="1.3" />
+              <circle cx="7" cy="13" r="1.3" />
+            </svg>
+          </div>
+        ))}
+      </div>
+      {dropIndicatorTop !== null && <div className="block-drop-indicator" style={{ top: dropIndicatorTop }} />}
       <RichTextPlugin
         contentEditable={
           <ContentEditable
