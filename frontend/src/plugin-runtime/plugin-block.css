@@ -1,0 +1,32 @@
+/*
+  Chrome around a `PluginBlockNode`'s decorated content. Per CLAUDE.md ("Theme
+  tokens only... doubly [true for] anything reachable from the plugin
+  UiSchemaRenderer"): everything below resolves through theme/tokens.css's
+  semantic tokens, same as ui-schema.css. This file only styles the
+  app-authored wrapper (label + border) — the plugin's own content inside
+  `.plugin-block-body` is exclusively styled by ui-schema.css, since that's
+  the one surface plugin-supplied data can ever reach.
+*/
+
+.plugin-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  padding: 10px 12px;
+  margin: 4px 0;
+}
+
+.plugin-block-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.plugin-block-body {
+  min-width: 0;
+}

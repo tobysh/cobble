@@ -2,6 +2,7 @@ import { $createListItemNode, $createListNode, $isListItemNode, $isListNode } fr
 import { $createHorizontalRuleNode, $isHorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode'
 import { $createHeadingNode, $isHeadingNode, type HeadingTagType } from '@lexical/rich-text'
 import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor, type LexicalNode, type NodeKey } from 'lexical'
+import { $createPluginBlockNode, $isPluginBlockNode } from '../plugin-runtime/PluginBlockNode'
 import { newUlid } from '../state/ulid'
 import type { Block, BlockId, BlockType } from '../state/types'
 
@@ -85,8 +86,24 @@ function buildNodes(blocks: Block[], idMap: Map<NodeKey, BlockId>): LexicalNode[
       continue
     }
 
+    if (block.type === 'plugin_block') {
+      // `attrs` shape is `{plugin_id, block_type, data}` per
+      // `crates/cobble-core/src/block.rs`'s doc comment on `Block::attrs`
+      // and `docs/ARCHITECTURE.md#file-format--storage` — snake_case keys,
+      // since `attrs` crosses the Tauri IPC boundary untouched (see
+      // `state/types.ts`'s comment on `Block`).
+      const pluginId = typeof block.attrs?.plugin_id === 'string' ? block.attrs.plugin_id : ''
+      const pluginBlockType = typeof block.attrs?.block_type === 'string' ? block.attrs.block_type : ''
+      const data = block.attrs?.data ?? null
+      const node = $createPluginBlockNode(pluginId, pluginBlockType, data)
+      nodes.push(node)
+      idMap.set(node.getKey(), block.id)
+      i++
+      continue
+    }
+
     // `paragraph`, and any other/legacy block type (M2's toggle/quote/code/
-    // table/image/sub_page/plugin_block) falls back to a plain paragraph
+    // table/image/sub_page) falls back to a plain paragraph
     // carrying its flattened text — this editor only ever writes back
     // paragraph/heading/todo/divider, so anything else is a read-only
     // downgrade rather than data loss on disk (the file isn't touched until
@@ -154,6 +171,20 @@ export function editorStateToBlocks(idMap: Map<NodeKey, BlockId>): Block[] {
           }),
         )
       }
+      continue
+    }
+
+    if ($isPluginBlockNode(node)) {
+      blocks.push({
+        id: blockIdFor(node.getKey(), idMap),
+        type: 'plugin_block',
+        attrs: {
+          plugin_id: node.getPluginId(),
+          block_type: node.getBlockType(),
+          data: node.getData(),
+        },
+        content: [],
+      })
       continue
     }
 
