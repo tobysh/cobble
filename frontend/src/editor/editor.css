@@ -7,6 +7,11 @@
   color: var(--text-tertiary);
   padding: 64px;
 }
+/* A database page's table wants the full canvas width, not the prose column
+   width the block editor uses. */
+.page-view--database {
+  max-width: none;
+}
 
 .page-header {
   display: flex;

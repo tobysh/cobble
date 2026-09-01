@@ -68,6 +68,54 @@ export type PropertyValue =
   | { type: 'multi_select'; value: string[] }
   | { type: 'relation'; value: PageId[] }
 
+// ---- Database schema (M3) ----------------------------------------------
+// Mirrors `crates/cobble-core/src/database_schema.rs` field-for-field. A
+// database is a page (`kind: 'database'`) whose `databaseSchema` is set; a
+// database row is a page whose `parentId` is that database, with typed
+// values in its own `properties` map (the same `PropertyValue` used above)
+// keyed by `PropertyDefinition.name`.
+
+/**
+ * A semantic tag color — never a raw hex/hsl/rgb (see "Theme tokens only" in
+ * CLAUDE.md). Maps 1:1 to a `--tag-<color>`/`--tag-<color>-soft` pair in
+ * `frontend/src/theme/tokens.css`; nothing in `database/` should ever read a
+ * color off a row/option any other way.
+ */
+export type TagColor = 'gray' | 'brown' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'red'
+
+export interface SelectOption {
+  name: string
+  color: TagColor
+}
+
+/** One database column's type, plus its type-specific config (`select`/`multi_select` only). */
+export type PropertyType =
+  | { type: 'text' }
+  | { type: 'number' }
+  | { type: 'checkbox' }
+  | { type: 'date' }
+  | { type: 'select'; config: { options: SelectOption[] } }
+  | { type: 'multi_select'; config: { options: SelectOption[] } }
+
+/** One named+typed column on a database. `name` matches a row's `properties` key. */
+export interface PropertyDefinition {
+  name: string
+  propertyType: PropertyType
+}
+
+export type ViewKind = 'table' | 'board' | 'list' | 'gallery' | 'calendar'
+
+export interface DatabaseView {
+  id: string
+  name: string
+  kind: ViewKind
+}
+
+export interface DatabaseSchema {
+  properties: PropertyDefinition[]
+  views: DatabaseView[]
+}
+
 /**
  * UI-facing page shape. Field-compatible with the old mock `Page` (`id`,
  * `title`, `icon`, `blocks`, `date`, `isDailyNote`) so `Sidebar`,
@@ -86,4 +134,6 @@ export interface Page {
   properties: Record<string, PropertyValue>
   date?: string
   isDailyNote?: boolean
+  /** Set only for `kind: 'database'` pages — see the "Database schema" section above. */
+  databaseSchema?: DatabaseSchema
 }

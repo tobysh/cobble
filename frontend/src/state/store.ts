@@ -1,12 +1,20 @@
 import { create } from 'zustand'
 import { api } from './api'
 import { newUlid } from './ulid'
-import type { Block, Page, PageId, Theme } from './types'
+import type { Block, Page, PageId, PropertyDefinition, Theme } from './types'
 
 // Sentinel key used in `children`/`expandedTree` for the workspace root,
 // since the backend's root parent is `null` (no id to key a JS object with).
 const ROOT_KEY = 'root'
 const JOURNAL_TITLE = 'Journal'
+const TITLE_SAVE_DEBOUNCE_MS = 500
+
+// Debounced per-page title persistence for `updatePageTitle` below — keyed
+// outside the store so it survives across re-renders without living in
+// component state. Mirrors the `SAVE_DEBOUNCE_MS` pattern `PageView.tsx`
+// uses for block content, so a title edited keystroke-by-keystroke doesn't
+// write the file on every character.
+const titleSaveTimers: Partial<Record<PageId, ReturnType<typeof setTimeout>>> = {}
 
 type View =
   | { kind: 'loading' }
@@ -37,13 +45,15 @@ interface WorkspaceState {
   saveBlocks: (pageId: PageId, blocks: Block[]) => Promise<void>
 
   /**
-   * Local-only for now: `pages.rs` has no rename/update-title command (only
-   * `update_page_blocks`, which never touches `title`), so an edit here does
-   * not survive an app restart. See the PR description for this gap.
+   * Updates `title` optimistically, then persists it (debounced) through
+   * `rename_page` — see the `m3-table-view` PR for the backend command this
+   * used to be missing (title edits didn't survive a restart before it).
    */
   updatePageTitle: (pageId: PageId, title: string) => void
 
   createPage: (parentId: PageId | null, title: string) => Promise<PageId>
+  /** Creates a `kind: 'database'` page (see `database/TableView.tsx`) with the given starter columns. */
+  createDatabase: (parentId: PageId | null, title: string, properties: PropertyDefinition[]) => Promise<PageId>
   createDailyNote: (dateISO: string, label: string) => Promise<PageId>
   deletePage: (pageId: PageId) => Promise<void>
 }
@@ -120,15 +130,41 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
     })
   },
 
-  updatePageTitle: (pageId, title) =>
+  updatePageTitle: (pageId, title) => {
     set((s) => {
       const page = s.pages[pageId]
       if (!page) return s
       return { pages: { ...s.pages, [pageId]: { ...page, title } } }
-    }),
+    })
+
+    const pending = titleSaveTimers[pageId]
+    if (pending) clearTimeout(pending)
+    titleSaveTimers[pageId] = setTimeout(() => {
+      delete titleSaveTimers[pageId]
+      void api.renamePage(pageId, title).catch((err) => {
+        console.error(`[cobble] rename_page failed for ${pageId}:`, err)
+      })
+    }, TITLE_SAVE_DEBOUNCE_MS)
+  },
 
   createPage: async (parentId, title) => {
     const page = await api.createPage(title, parentId)
+    set((s) => {
+      const key = childKey(parentId)
+      const next = new Set(s.expandedTree)
+      if (parentId) next.add(parentId)
+      return {
+        pages: { ...s.pages, [page.id]: page },
+        children: { ...s.children, [key]: [...(s.children[key] ?? []), page.id] },
+        expandedTree: next,
+      }
+    })
+    get().openPage(page.id)
+    return page.id
+  },
+
+  createDatabase: async (parentId, title, properties) => {
+    const page = await api.createDatabase(title, parentId, properties)
     set((s) => {
       const key = childKey(parentId)
       const next = new Set(s.expandedTree)

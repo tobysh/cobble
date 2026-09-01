@@ -24,6 +24,7 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { TableView } from '../database/TableView'
 import { useWorkspace } from '../state/store'
 import type { Block, BlockId, BlockType, PageId } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
@@ -382,17 +383,34 @@ export function PageView({ pageId }: { pageId: PageId }) {
     return <div className="page-view page-view--missing">Page not found.</div>
   }
 
+  const header = (
+    <div className="page-header">
+      <div className="page-icon">{page.icon}</div>
+      <input
+        className="page-title"
+        value={page.title}
+        placeholder="Untitled"
+        onChange={(e) => updatePageTitle(pageId, e.target.value)}
+      />
+    </div>
+  )
+
+  // A database page (`kind: 'database'`) renders its schema as a table
+  // instead of the block editor — see `frontend/src/database/TableView.tsx`.
+  // Board/list/gallery/calendar views are later M3 tasks that will branch on
+  // the page's *view* selection here too; table is the only one today.
+  if (page.kind === 'database') {
+    return (
+      <div className="page-view page-view--database">
+        {header}
+        <TableView databaseId={pageId} schema={page.databaseSchema} />
+      </div>
+    )
+  }
+
   return (
     <div className="page-view">
-      <div className="page-header">
-        <div className="page-icon">{page.icon}</div>
-        <input
-          className="page-title"
-          value={page.title}
-          placeholder="Untitled"
-          onChange={(e) => updatePageTitle(pageId, e.target.value)}
-        />
-      </div>
+      {header}
 
       <LexicalComposer initialConfig={initialConfig}>
         <EditorBody pageId={pageId} idMap={idMapRef.current} />

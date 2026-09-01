@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import type { Block, Page, PageId, PageKind, PropertyValue } from './types'
+import type { Block, DatabaseSchema, Page, PageId, PageKind, PropertyDefinition, PropertyValue } from './types'
 
 // Thin wrapper around the Tauri commands in `src-tauri/src/commands/pages.rs`
 // (`create_page` / `get_page` / `update_page_blocks` / `list_children` /
@@ -17,6 +17,21 @@ import type { Block, Page, PageId, PageKind, PropertyValue } from './types'
 //    fields so `CalendarView`/`Sidebar`/`CommandPalette` don't need to know
 //    about the `properties` map at all.
 
+// Raw on-disk shape of `cobble_core::database_schema::PropertyDefinition` —
+// snake_case `property_type` key, unlike the UI-facing `PropertyDefinition`
+// in `state/types.ts` (Tauri only camelCases *command argument* names, not
+// arbitrary struct field names in a response body, so this still needs the
+// same manual mapping `fromBackendPage` already does for `Page` itself).
+interface BackendPropertyDefinition {
+  name: string
+  property_type: PropertyDefinition['propertyType']
+}
+
+interface BackendDatabaseSchema {
+  properties: BackendPropertyDefinition[]
+  views?: DatabaseSchema['views']
+}
+
 interface BackendPage {
   format_version: number
   id: PageId
@@ -25,7 +40,7 @@ interface BackendPage {
   title: string
   icon?: string | null
   properties?: Record<string, PropertyValue>
-  database_schema?: unknown
+  database_schema?: BackendDatabaseSchema | null
   blocks: Block[]
 }
 
@@ -38,6 +53,11 @@ interface BackendPageSummary {
 }
 
 const DEFAULT_ICON = '📄'
+const DEFAULT_DATABASE_ICON = '🗄️'
+
+function defaultIconFor(kind: PageKind): string {
+  return kind === 'database' ? DEFAULT_DATABASE_ICON : DEFAULT_ICON
+}
 
 function dateFromProperties(props?: Record<string, PropertyValue>): string | undefined {
   const prop = props?.date
@@ -49,18 +69,27 @@ function isDailyNoteFromProperties(props?: Record<string, PropertyValue>): boole
   return prop?.type === 'checkbox' ? prop.value : false
 }
 
+function fromBackendDatabaseSchema(schema?: BackendDatabaseSchema | null): DatabaseSchema | undefined {
+  if (!schema) return undefined
+  return {
+    properties: schema.properties.map((p) => ({ name: p.name, propertyType: p.property_type })),
+    views: schema.views ?? [],
+  }
+}
+
 function fromBackendPage(p: BackendPage): Page {
   return {
     id: p.id,
     parentId: p.parent_id ?? null,
     kind: p.kind,
     title: p.title,
-    icon: p.icon ?? DEFAULT_ICON,
+    icon: p.icon ?? defaultIconFor(p.kind),
     blocks: p.blocks ?? [],
     formatVersion: p.format_version,
     properties: p.properties ?? {},
     date: dateFromProperties(p.properties),
     isDailyNote: isDailyNoteFromProperties(p.properties),
+    databaseSchema: fromBackendDatabaseSchema(p.database_schema),
   }
 }
 
@@ -70,7 +99,7 @@ function fromBackendSummary(p: BackendPageSummary): Page {
     parentId: p.parent_id,
     kind: p.kind,
     title: p.title,
-    icon: p.icon ?? DEFAULT_ICON,
+    icon: p.icon ?? defaultIconFor(p.kind),
     blocks: [],
     formatVersion: 1,
     properties: {},
@@ -105,5 +134,37 @@ export const api = {
 
   async deletePage(id: PageId): Promise<void> {
     await invoke<void>('delete_page', { id })
+  },
+
+  async renamePage(id: PageId, title: string): Promise<Page> {
+    const page = await invoke<BackendPage>('rename_page', { id, title })
+    return fromBackendPage(page)
+  },
+
+  // ---- Databases (see `src-tauri/src/commands/database.rs`) ------------
+
+  async createDatabase(title: string, parentId: PageId | null, properties: PropertyDefinition[]): Promise<Page> {
+    const page = await invoke<BackendPage>('create_database', {
+      title,
+      parentId,
+      properties: properties.map((p) => ({ name: p.name, property_type: p.propertyType })),
+    })
+    return fromBackendPage(page)
+  },
+
+  async listDatabaseRows(databaseId: PageId): Promise<Page[]> {
+    const rows = await invoke<BackendPage[]>('list_database_rows', { databaseId })
+    return rows.map(fromBackendPage)
+  },
+
+  async createDatabaseRow(databaseId: PageId, title: string): Promise<Page> {
+    const page = await invoke<BackendPage>('create_database_row', { databaseId, title })
+    return fromBackendPage(page)
+  },
+
+  /** `value: null` clears the property instead of setting it. */
+  async updateRowProperty(rowId: PageId, name: string, value: PropertyValue | null): Promise<Page> {
+    const page = await invoke<BackendPage>('update_row_property', { rowId, name, value })
+    return fromBackendPage(page)
   },
 }

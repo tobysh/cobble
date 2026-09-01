@@ -88,6 +88,11 @@ pub fn run() {
       commands::pages::list_children,
       commands::pages::move_page,
       commands::pages::delete_page,
+      commands::pages::rename_page,
+      commands::database::create_database,
+      commands::database::list_database_rows,
+      commands::database::create_database_row,
+      commands::database::update_row_property,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

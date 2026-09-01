@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
-import { Calendar, ChevronRight, Moon, Plus, Search, Sun, SunMoon, Trash2 } from 'lucide-react'
+import { Calendar, ChevronRight, Moon, Plus, Search, Sun, SunMoon, Table2, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { DEFAULT_DATABASE_PROPERTIES } from '../database/defaultSchema'
 import { hoverLift, hoverTransition, tapShrink } from '../theme/motion'
 import { useWorkspace } from '../state/store'
 import type { Theme } from '../state/types'
@@ -75,8 +76,10 @@ export function Sidebar() {
   const openCalendar = useWorkspace((s) => s.openCalendar)
   const setPaletteOpen = useWorkspace((s) => s.setPaletteOpen)
   const createPage = useWorkspace((s) => s.createPage)
+  const createDatabase = useWorkspace((s) => s.createDatabase)
   const isCalendarActive = useWorkspace((s) => s.view.kind === 'calendar')
   const [newPageHover, setNewPageHover] = useState(false)
+  const [newDatabaseHover, setNewDatabaseHover] = useState(false)
 
   return (
     <aside className="sidebar">
@@ -125,6 +128,17 @@ export function Sidebar() {
           <span className="tree-caret tree-caret--hidden" />
           <Plus size={14} style={{ opacity: newPageHover ? 1 : 0.6 }} />
           <span className="tree-title tree-title--muted">New page</span>
+        </button>
+        <button
+          type="button"
+          className="tree-row tree-row--new"
+          onMouseEnter={() => setNewDatabaseHover(true)}
+          onMouseLeave={() => setNewDatabaseHover(false)}
+          onClick={() => void createDatabase(null, 'Untitled Database', DEFAULT_DATABASE_PROPERTIES)}
+        >
+          <span className="tree-caret tree-caret--hidden" />
+          <Table2 size={14} style={{ opacity: newDatabaseHover ? 1 : 0.6 }} />
+          <span className="tree-title tree-title--muted">New database</span>
         </button>
       </nav>
 

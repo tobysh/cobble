@@ -35,6 +35,10 @@
   --code-bg: #f4f3ec;
   --code-text: #af4c19;
 
+  --tag-gray: #787774;
+  --tag-gray-soft: rgba(120, 119, 116, 0.14);
+  --tag-brown: #976d57;
+  --tag-brown-soft: rgba(151, 109, 87, 0.14);
   --tag-red: #e03e3e;
   --tag-red-soft: rgba(224, 62, 62, 0.14);
   --tag-orange: #d9730d;
@@ -97,6 +101,10 @@
   --code-bg: #2a2a2a;
   --code-text: #e5a76a;
 
+  --tag-gray: #9b9b98;
+  --tag-gray-soft: rgba(155, 155, 152, 0.18);
+  --tag-brown: #ba9075;
+  --tag-brown-soft: rgba(186, 144, 117, 0.18);
   --tag-red: #eb7a6f;
   --tag-red-soft: rgba(235, 122, 111, 0.18);
   --tag-orange: #e5a458;
@@ -164,6 +172,10 @@
   --code-text: var(--gray-10);
 
   /* No hue for tags in Night — grayscale ramp stands in for color-coding. */
+  --tag-gray: var(--gray-8);
+  --tag-gray-soft: var(--gray-3);
+  --tag-brown: var(--gray-8);
+  --tag-brown-soft: var(--gray-3);
   --tag-red: var(--gray-11);
   --tag-red-soft: var(--gray-3);
   --tag-orange: var(--gray-10);

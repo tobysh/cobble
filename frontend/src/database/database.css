@@ -1,0 +1,249 @@
+/* Table view. Theme tokens only — see "Theme tokens only" in CLAUDE.md;
+   every color here resolves through `frontend/src/theme/tokens.css`. */
+
+.db-table-view {
+  padding: 0 4px;
+}
+
+.db-empty-state {
+  color: var(--text-tertiary);
+  padding: 24px 4px;
+  font-size: 13.5px;
+}
+
+.db-error-banner {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+
+.db-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+}
+
+.db-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13.5px;
+}
+
+.db-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-hairline);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+}
+
+.db-table tbody td {
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 0;
+  vertical-align: middle;
+}
+
+.db-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.db-table tbody tr:hover {
+  background: var(--bg-surface-hover);
+}
+
+.db-col-title {
+  min-width: 200px;
+}
+
+.db-col-actions {
+  width: 32px;
+}
+
+.db-row-delete {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.db-row-delete:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.db-loading {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  padding: 10px 4px;
+}
+
+.db-add-row {
+  margin-top: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.db-add-row:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+
+/* Generic cell input — text/number/date/title share this shell. */
+.db-cell-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  padding: 7px 10px;
+  outline: none;
+  border-radius: 0;
+}
+.db-cell-input::placeholder {
+  color: var(--text-tertiary);
+}
+.db-cell-input:focus {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+.db-cell-input--title {
+  font-weight: 500;
+}
+.db-cell-input--number {
+  text-align: right;
+}
+
+.db-cell-empty {
+  color: var(--text-tertiary);
+  padding: 0 2px;
+}
+
+/* Checkbox cell */
+.db-checkbox {
+  display: block;
+  width: 16px;
+  height: 16px;
+  margin: 10px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-canvas);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+}
+.db-checkbox--checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.db-checkbox--checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--text-on-accent);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+/* Select / multi-select cells. `<details>` gives a zero-JS-listener popover
+   (no click-outside wiring needed for the open/close toggle itself — only
+   for closing it again on an outside click, see `useClosePopover`). */
+.db-select-cell {
+  position: relative;
+}
+.db-select-summary {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.db-select-summary::-webkit-details-marker {
+  display: none;
+}
+.db-select-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glass);
+  padding: 6px;
+}
+.db-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.db-select-option:hover {
+  background: var(--bg-surface-hover);
+}
+.db-select-check {
+  color: var(--accent);
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+.db-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.db-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.db-tag-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.7;
+}
+.db-tag-remove:hover {
+  opacity: 1;
+}

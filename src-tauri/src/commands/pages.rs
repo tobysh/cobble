@@ -102,6 +102,29 @@ fn update_page_blocks_impl(
     Ok(page)
 }
 
+/// Renames a page in place (title only — `parent_id`/`blocks`/`properties`
+/// untouched). This is the gap the frontend's `updatePageTitle` used to work
+/// around with a local-only edit that didn't survive a restart (see
+/// `frontend/src/state/store.ts`); it now persists through here.
+#[tauri::command]
+pub fn rename_page(state: State<AppState>, id: PageId, title: String) -> Result<Page, String> {
+    let mut index = state.index.lock().map_err(|_| "index lock poisoned")?;
+    rename_page_impl(&state.workspace, &mut index, id, title)
+}
+
+fn rename_page_impl(
+    workspace: &Workspace,
+    index: &mut Index,
+    id: PageId,
+    title: String,
+) -> Result<Page, String> {
+    let mut page = load_page(workspace, id)?;
+    page.title = title;
+    let path = workspace.write_page(&page).map_err(|err| err.to_string())?;
+    index.reindex_file(&path).map_err(|err| err.to_string())?;
+    Ok(page)
+}
+
 /// Sourced from `cobble-index` (a SQLite query) rather than reading every
 /// page file in the workspace directly.
 #[tauri::command]
@@ -221,6 +244,26 @@ mod tests {
         let (_dir, workspace, mut index) = open_temp_workspace();
         let err =
             update_page_blocks_impl(&workspace, &mut index, PageId::new(), vec![]).unwrap_err();
+        assert!(err.contains("not found"));
+    }
+
+    #[test]
+    fn rename_page_updates_title_and_persists() {
+        let (_dir, workspace, mut index) = open_temp_workspace();
+        let page = create_page_impl(&workspace, &mut index, "Old Title".into(), None).unwrap();
+
+        let renamed =
+            rename_page_impl(&workspace, &mut index, page.id, "New Title".into()).unwrap();
+        assert_eq!(renamed.title, "New Title");
+
+        let reloaded = get_page_impl(&workspace, page.id).unwrap().unwrap();
+        assert_eq!(reloaded.title, "New Title");
+    }
+
+    #[test]
+    fn rename_page_errors_for_an_unknown_id() {
+        let (_dir, workspace, mut index) = open_temp_workspace();
+        let err = rename_page_impl(&workspace, &mut index, PageId::new(), "X".into()).unwrap_err();
         assert!(err.contains("not found"));
     }
 
