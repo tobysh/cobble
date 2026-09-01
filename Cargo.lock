@@ -69,7 +69,9 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "cobble-core",
+ "cobble-index",
  "cobble-storage",
+ "cobble-watcher",
  "log",
  "serde",
  "serde_json",
