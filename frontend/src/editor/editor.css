@@ -22,80 +22,63 @@
   font-size: 34px;
   font-weight: 700;
   color: var(--text-primary);
+  background: transparent;
+  border: none;
   outline: none;
   flex: 1;
   min-width: 0;
+  font-family: inherit;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
-.page-title:empty::before {
-  content: attr(data-placeholder);
+.page-title::placeholder {
   color: var(--text-tertiary);
 }
+.page-title:focus {
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
 
+/* Lexical editor shell. `.editor-content` is the contentEditable root;
+   `.editor-placeholder` overlays it (RichTextPlugin renders them as
+   siblings, not nested) while the document is empty. */
 .page-blocks {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.block-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 2px 0;
-  border-radius: var(--radius-sm);
   position: relative;
+  min-height: 200px;
 }
-.block-content-wrap {
-  flex: 1;
-  min-width: 0;
-  position: relative;
+.editor-content {
+  outline: none;
+  color: var(--text-primary);
+  cursor: text;
 }
-.block-grip {
-  width: 16px;
-  height: 24px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-tertiary);
-  opacity: 0;
-  cursor: grab;
+.editor-content > * + * {
   margin-top: 2px;
 }
-.block-row:hover .block-grip {
-  opacity: 0.6;
+.editor-placeholder {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  color: var(--text-tertiary);
+  font-size: 15.5px;
+  pointer-events: none;
+  user-select: none;
 }
 
 .block-text {
   color: var(--text-primary);
   font-size: 15.5px;
   line-height: 1.55;
-  outline: none;
   min-height: 1.55em;
   padding: 2px 4px;
   border-radius: 4px;
-}
-.block-text:focus {
-  box-shadow: 0 0 0 2px var(--focus-ring);
-}
-.block-text:empty::before {
-  content: attr(data-placeholder);
-  color: var(--text-tertiary);
-}
-.block-text--done {
-  color: var(--text-tertiary);
-  text-decoration: line-through;
+  margin: 0;
 }
 
 .block-heading {
   color: var(--text-primary);
   font-weight: 700;
-  outline: none;
   padding: 4px;
   border-radius: 4px;
-}
-.block-heading:focus {
-  box-shadow: 0 0 0 2px var(--focus-ring);
+  margin: 0;
 }
 .block-heading--1 {
   font-size: 26px;
@@ -110,192 +93,68 @@
   margin-top: 6px;
 }
 
-.block-todo {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  width: 100%;
-  padding-top: 4px;
-}
-.block-todo input[type='checkbox'] {
-  margin-top: 6px;
-  width: 15px;
-  height: 15px;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-.block-todo .block-text {
-  flex: 1;
-}
-
-.block-toggle-wrapper {
-  display: flex;
-  flex-direction: column;
-}
-.block-toggle-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 4px;
-  width: 100%;
-}
-.toggle-caret {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 24px;
-  flex-shrink: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-tertiary);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.toggle-caret:hover {
-  background: var(--bg-surface-hover);
-  color: var(--text-primary);
-}
-.block-toggle-children {
-  margin-left: 22px;
-  padding-left: 10px;
-  border-left: 1px solid var(--border-hairline);
-}
-
-.block-quote {
-  color: var(--text-primary);
-  font-size: 15.5px;
-  font-style: italic;
-  outline: none;
-  border-left: 3px solid var(--border-strong);
-  padding: 4px 4px 4px 14px;
-  border-radius: 0 4px 4px 0;
-}
-.block-quote:focus {
-  box-shadow: 0 0 0 2px var(--focus-ring);
-}
-
-.block-code {
-  background: var(--code-bg);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  border: 1px solid var(--border-hairline);
-}
-.block-code-lang {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-tertiary);
-  margin-bottom: 6px;
-}
-.block-code-text {
-  font-family: var(--font-mono);
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--code-text);
-  white-space: pre-wrap;
-  outline: none;
-}
-
 .block-divider {
   border: none;
   border-top: 1px solid var(--border-hairline);
   margin: 12px 4px;
+  cursor: pointer;
+}
+.block-divider.selected {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
-.block-table {
-  border-collapse: collapse;
-  width: 100%;
-  font-size: 14px;
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-.block-table td {
-  border: 1px solid var(--border-hairline);
+/* Checklist ("todo" blocks) — one Lexical `ListNode(listType: 'check')` per
+   run of consecutive todo blocks, one `ListItemNode` per block (see
+   `editor/serialization.ts`). The checkbox itself is a `::before` square;
+   `@lexical/list`'s click-to-toggle hit-testing measures that pseudo-
+   element's computed width, so it has to stay a real box, not a background
+   image. */
+.editor-checklist {
+  list-style: none;
+  margin: 0;
   padding: 0;
 }
-.block-table-header td {
-  font-weight: 600;
-  background: var(--bg-surface);
-}
-.block-table-cell {
-  display: block;
-  padding: 7px 10px;
+.editor-listitem {
+  position: relative;
+  list-style: none;
+  padding: 3px 4px 3px 28px;
+  min-height: 1.55em;
+  font-size: 15.5px;
+  line-height: 1.55;
   color: var(--text-primary);
   outline: none;
-  min-height: 1.4em;
 }
-.block-table-cell:focus {
-  box-shadow: inset 0 0 0 2px var(--focus-ring);
-}
-
-.block-image {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.block-image-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 140px;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-md);
-  color: var(--text-tertiary);
-  font-size: 12.5px;
-  background: var(--bg-surface);
-}
-.block-image-caption {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  text-align: center;
-  outline: none;
-}
-.block-image-caption:empty::before {
-  content: attr(data-placeholder);
-  color: var(--text-tertiary);
-}
-
-.block-subpage {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 14.5px;
-  font-family: inherit;
+.editor-listitem::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--bg-canvas);
   cursor: pointer;
-  text-align: left;
 }
-.block-subpage:hover {
-  background: var(--bg-surface-hover);
-}
-
-.page-add-block {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
+.editor-listitem--checked {
   color: var(--text-tertiary);
-  font-size: 13.5px;
-  font-family: inherit;
-  padding: 8px 6px;
-  margin-top: 6px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  width: fit-content;
+  text-decoration: line-through;
 }
-.page-add-block:hover {
-  color: var(--text-secondary);
-  background: var(--bg-surface-hover);
+.editor-listitem--checked::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.editor-listitem--checked::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 4px;
+  height: 8px;
+  border: solid var(--text-on-accent);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
 }
 
 /* Slash command menu */
