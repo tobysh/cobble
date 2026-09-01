@@ -98,8 +98,11 @@ def get_agent(agent_id: str):
 @app.post("/agents/{agent_id}")
 def update_agent(agent_id: str, update: UpdateAgent):
     """An agent reports its own status/current task/free-form note. Auto-registers if this
-    id hasn't called POST /agents yet, so a fresh agent can just start posting updates."""
-    fields = {k: v for k, v in update.model_dump().items() if v is not None}
+    id hasn't called POST /agents yet, so a fresh agent can just start posting updates.
+
+    Uses exclude_unset so an explicit `null` (e.g. clearing current_task back to idle) is
+    applied, while a field left out of the body entirely is left untouched."""
+    fields = update.model_dump(exclude_unset=True)
     with db.connect() as conn:
         existing = conn.execute("SELECT 1 FROM agents WHERE id = ?", (agent_id,)).fetchone()
         if existing is None:
@@ -197,7 +200,9 @@ def claim_task(task_id: str, claim: ClaimTask):
 
 @app.post("/tasks/{task_id}")
 def update_task(task_id: str, update: UpdateTask):
-    fields = {k: v for k, v in update.model_dump().items() if v is not None}
+    """Uses exclude_unset so an explicit `null` is applied, not silently dropped like an
+    omitted field would be."""
+    fields = update.model_dump(exclude_unset=True)
     with db.connect() as conn:
         row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
         if row is None:
