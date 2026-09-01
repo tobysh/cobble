@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { PropertyDefinition, PropertyValue, SelectOption, TagColor } from '../state/types'
+import { useClosePopover } from './usePopover'
 
 // One cell renderer/editor per `PropertyType` — the table view's columns are
 // typed via `PropertyDefinition.propertyType`, and this is the only place
@@ -29,26 +30,6 @@ function TagPill({ name, color, onRemove }: { name: string; color: TagColor; onR
       )}
     </span>
   )
-}
-
-/** Closes an open `<details>` popover on outside click / Escape / selection. */
-function useClosePopover(open: boolean, ref: React.RefObject<HTMLDetailsElement | null>) {
-  useEffect(() => {
-    if (!open) return
-    const close = (e: MouseEvent | KeyboardEvent) => {
-      if (e instanceof KeyboardEvent) {
-        if (e.key === 'Escape') ref.current?.removeAttribute('open')
-        return
-      }
-      if (ref.current && !ref.current.contains(e.target as Node)) ref.current.removeAttribute('open')
-    }
-    document.addEventListener('mousedown', close)
-    document.addEventListener('keydown', close)
-    return () => {
-      document.removeEventListener('mousedown', close)
-      document.removeEventListener('keydown', close)
-    }
-  }, [open, ref])
 }
 
 export function PropertyCell({

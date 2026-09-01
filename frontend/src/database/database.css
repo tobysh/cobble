@@ -247,3 +247,178 @@
 .db-tag-remove:hover {
   opacity: 1;
 }
+
+/* Filter/sort/group toolbar. Same zero-JS-listener `<details>` popover
+   pattern as the select/multi-select cells above. */
+.db-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.db-toolbar-popover {
+  position: relative;
+}
+
+.db-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+}
+.db-toolbar-btn::-webkit-details-marker {
+  display: none;
+}
+.db-toolbar-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.db-toolbar-count {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.db-toolbar-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 320px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glass);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.db-toolbar-empty {
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.db-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.db-toolbar-select,
+.db-toolbar-input {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 5px 7px;
+  min-width: 0;
+  flex: 1;
+}
+.db-toolbar-select:focus,
+.db-toolbar-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.db-toolbar-direction {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.db-toolbar-direction:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+}
+
+.db-toolbar-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.db-toolbar-remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.db-toolbar-add {
+  align-self: flex-start;
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.db-toolbar-add:hover {
+  color: var(--accent-hover);
+}
+
+/* Group sections */
+.db-group-header-row td {
+  padding: 0;
+  border-bottom: none;
+  background: var(--bg-surface);
+}
+.db-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 8px 10px;
+  font: inherit;
+  text-align: left;
+}
+.db-group-header:hover {
+  background: var(--bg-surface-hover);
+}
+.db-group-caret {
+  display: inline-block;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  transition: transform 0.12s ease;
+}
+.db-group-caret--collapsed {
+  transform: rotate(-90deg);
+}
+.db-group-label {
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.db-group-count {
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+}
