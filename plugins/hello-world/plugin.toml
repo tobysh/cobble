@@ -1,0 +1,21 @@
+[plugin]
+id = "hello-world"
+name = "Hello World"
+version = "0.1.0"
+
+[permissions]
+# Zero permissions: this sample only renders a static greeting, so it never
+# calls get-block-data/update-block-data and needs no grant at all. See
+# docs/PLUGINS.md's "The manifest" section — everything here defaults to
+# false/empty, so this section is included for clarity rather than necessity.
+read_pages = false
+write_pages = false
+network = []
+events = []
+custom_ui = false
+
+[contributes]
+block_types = ["hello_world.greeting"]
+slash_commands = []
+sidebar_panels = []
+data_sources = []
