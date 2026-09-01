@@ -18,7 +18,7 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 
 | Task | Status | Owner / branch | Notes |
 |---|---|---|---|
-| `cobble-core`: `Page`/`Block` domain types | in-progress | main (solo session) | |
+| `cobble-core`: `Page`/`Block` domain types | done | main (solo session) | `Page`/`Block`/`PropertyValue`/ULID-based `PageId`/`BlockId`; `database_schema` left as opaque JSON pending M3; round-trip tests pass |
 | `cobble-storage`: file format read/write, atomic writes, ULID IDs | todo | | |
 | `cobble-index`: SQLite schema + `rebuild_all()` | todo | | |
 | `cobble-watcher`: FS watch → incremental reindex | todo | | |
