@@ -1,0 +1,5 @@
+coord.sqlite3
+coord.sqlite3-wal
+coord.sqlite3-shm
+__pycache__/
+*.pyc

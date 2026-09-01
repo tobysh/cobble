@@ -1,6 +1,12 @@
-# Task board
+# Task board (snapshot — not live)
 
-Live status for `docs/ARCHITECTURE.md`'s milestones. This file is the multi-agent coordination point — see "Working with multiple agents" in `CLAUDE.md` for the protocol. Keep entries short; this is a claim board, not a design doc.
+**This file is no longer the coordination point.** It's a point-in-time export, seeded once via
+`tools/coord-server/seed_from_tasks_md.py`, and won't reflect claims/status changes made
+through the server afterwards. The live state is the coordination server described in
+"Working with multiple agents" in `CLAUDE.md` — query it with `GET localhost:8420/tasks`, or
+see `tools/coord-server/README.md`. Don't hand-edit the Status/Owner columns below; they'll
+just drift, which is the exact problem this replaced (see `CLAUDE.md` for the 2026-09-01
+`cobble-storage` double-build that motivated the switch).
 
 Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 
@@ -73,8 +79,17 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 
 ## How to claim a task
 
-1. `git fetch origin && git log origin/main -1 -- TASKS.md` (or just re-read this file after pulling `main`) — a claim that only exists in your local worktree doesn't count; someone else can't see it.
-2. Edit your row: set `Status` to `claimed`, fill `Owner / branch` with your worktree's branch name (see `CLAUDE.md`), commit just that change with a message like `tasks: claim cobble-storage file format`.
-3. **`git push` your branch to `origin`, then merge that one-line claim commit into `main` and `git push origin main` immediately** — a claim sitting only in a local commit (even a pushed *branch*, if it's not also merged to `main`) is invisible to another agent reading `main`'s `TASKS.md`, which is exactly how the M1 `cobble-storage` double-build happened (2026-09-01: `agent/cobble-storage` and `agent/task1` both built it — see that row's note). Do the merge-to-`main` step *before* starting real work, not after.
-4. Update to `in-progress` → `done` as you go, pushing + merging the status line each time — not just at the end. `blocked` with a one-line reason if you get stuck on something another agent owns.
-5. If you're not sure whether a task is already spoken for (e.g. someone told you your assignment out-of-band, not through this file), `git fetch` and check here first — `TASKS.md` on `main` is the single source of truth for claims. If another coordination doc (e.g. `agents.md`) disagrees with this file, this file wins; reconcile the other doc or flag the mismatch rather than trusting it silently.
+Use the coordination server, not this file:
+
+```sh
+curl -s -X POST localhost:8420/agents -H 'content-type: application/json' \
+  -d '{"id":"<your-agent-id>","branch":"agent/<task-slug>","worktree":"'"$(pwd)"'"}'
+curl -s localhost:8420/tasks
+curl -s -X POST localhost:8420/tasks/<task-id>/claim -H 'content-type: application/json' \
+  -d '{"agent_id":"<your-agent-id>","branch":"agent/<task-slug>"}'
+# ... do the work ...
+curl -s -X POST localhost:8420/tasks/<task-id> -H 'content-type: application/json' \
+  -d '{"status":"done","notes":"..."}'
+```
+
+See `tools/coord-server/README.md` for the full API and rationale.

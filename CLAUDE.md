@@ -2,7 +2,7 @@
 
 A Notion-style workspace app — Rust backend, Tauri desktop shell, React/TypeScript frontend. Off-black/off-white monochrome "Night" theme plus Notion-mirrored Light/Dark themes, a global calendar, full relational databases, and a sandboxed WASM plugin API.
 
-**Read `docs/ARCHITECTURE.md` before making any non-trivial change.** It's the full design doc (storage format, data model, plugin system, theming, motion, milestones) and is the source of truth — more detailed and more durable than this file. This file (`CLAUDE.md`) covers *how to work in this repo day to day*; `docs/ARCHITECTURE.md` covers *what we're building and why*. Check `TASKS.md` for current status before picking up work.
+**Read `docs/ARCHITECTURE.md` before making any non-trivial change.** It's the full design doc (storage format, data model, plugin system, theming, motion, milestones) and is the source of truth — more detailed and more durable than this file. This file (`CLAUDE.md`) covers *how to work in this repo day to day*; `docs/ARCHITECTURE.md` covers *what we're building and why*. Check the coordination server (`GET localhost:8420/tasks`, see "Working with multiple agents" below) for current status before picking up work.
 
 ## Commands
 
@@ -35,10 +35,20 @@ There is no display in most CI/headless/container environments — `tauri dev` a
 
 ## Working with multiple agents
 
-This repo is set up to be worked on by several Claude Code instances at once (possibly across machines). The coordination point is `TASKS.md` — read it first, claim a row before starting, update it as you go. A few things that make parallel work safe here specifically:
+This repo is set up to be worked on by several Claude Code instances at once, all currently on the same host as separate git worktrees. The coordination point is the **coordination server** in `tools/coord-server/` (FastAPI + SQLite, see its README) — not `TASKS.md`. `TASKS.md` used to be the live claim board via git, but with N worktrees each holding their own checkout it was only ever as fresh as the last `fetch`+merge to `main`, which is exactly how `agent/cobble-storage` and `agent/task1` both ended up independently building the full `cobble-storage` crate on 2026-09-01. The server is a single live process every worktree talks to over HTTP, with an atomic claim endpoint, so that race can't happen. `TASKS.md` is now a point-in-time snapshot only — don't hand-edit its status/owner columns; treat the server's `GET /tasks` as truth.
+
+Start of session:
+```sh
+curl -s -X POST localhost:8420/agents -H 'content-type: application/json' \
+  -d '{"id":"<your-agent-id>","branch":"agent/<task-slug>","worktree":"'"$(pwd)"'"}'
+curl -s localhost:8420/tasks   # see what's todo/claimed/in-progress/blocked/done
+```
+If nothing answers on `localhost:8420`, the server isn't running — start it per `tools/coord-server/README.md` rather than falling back to editing `TASKS.md` by hand.
+
+A few things that make parallel work safe here specifically:
 
 - **Crate/directory boundaries are the parallelism unit.** `cobble-core`, `cobble-storage`, `cobble-index`, `cobble-watcher`, `cobble-search`, `cobble-plugin-host`, `cobble-plugin-sdk`, and `frontend/` are deliberately separable. Prefer claiming a whole crate or a whole frontend subdirectory (`editor/`, `database/`, `calendar/`, `theme/`, `plugin-runtime/`) per task rather than splitting one file across two agents.
-- **`cobble-core` is the one shared surface — be careful there.** Almost everything depends on it. If your task requires changing a type in `cobble-core`, either: (a) make it additive (new optional field, new enum variant) so other in-flight work doesn't break, or (b) if it must be a breaking change, do it in its own small, fast task and update `TASKS.md` to flag it loudly so other agents know to rebase. Don't leave `cobble-core` in a state that fails `cargo check --workspace`.
+- **`cobble-core` is the one shared surface — be careful there.** Almost everything depends on it. If your task requires changing a type in `cobble-core`, either: (a) make it additive (new optional field, new enum variant) so other in-flight work doesn't break, or (b) if it must be a breaking change, do it in its own small, fast task and post a note on it via `POST /tasks/{id}` so other agents know to rebase. Don't leave `cobble-core` in a state that fails `cargo check --workspace`.
 - **Use a separate git worktree per agent/task**, not the same working directory two instances both run `cargo`/`pnpm` in simultaneously — concurrent builds in one `target/`/`node_modules` will race and corrupt each other's build state.
   ```sh
   git worktree add ../cobble-<task-slug> -b agent/<task-slug>
@@ -47,9 +57,9 @@ This repo is set up to be worked on by several Claude Code instances at once (po
   Each worktree gets its own `target/` and build state; only the git history is shared. Merge back to `main` via a normal branch/PR flow, not by editing the same files from two worktrees at once.
 - **Before ending a task, verify the crates/dirs you touched still build**: `cargo check --workspace` for any Rust change, `pnpm --dir frontend build` for any frontend change — even if your task was scoped to one crate, a breaking `cobble-core` change can silently break a sibling crate that isn't yours.
 - **Commit small and often within your task**, so a conflict (if two agents did end up touching overlapping code) is a normal git merge conflict to resolve, not a lost afternoon of work.
-- **A claim isn't real until it's pushed *and* merged into `main`.** A commit sitting only in your local worktree — or even pushed to your own branch but not merged to `main` — is invisible to any agent reading `main`'s `TASKS.md`. This isn't hypothetical: on 2026-09-01, `agent/cobble-storage` and `agent/task1` both built the full `cobble-storage` crate independently because the first claim was never merged to `main` before the second agent looked. Push your branch and fast-forward-merge that one-line claim commit into `main` *before* doing the real work, not after.
-- **`TASKS.md` on `main` is the only source of truth for claims.** If you were told your assignment some other way (a separate notes file, a message, an out-of-band list), reconcile it against `TASKS.md` before starting — don't trust an assignment that hasn't been cross-checked against the live claim board, and don't leave a second coordination file (e.g. an `agents.md`) around that can drift out of sync with it.
-- **Update `TASKS.md`'s status column as you go**, not just at the end — another agent deciding what to pick up next is reading it live.
+- **Claim before starting real work**: `POST /tasks/{id}/claim {"agent_id": "...", "branch": "..."}`. A 409 means someone beat you to it — go pick something else, don't just start working anyway. This *is* atomic (unlike the old git protocol), so there's no push/merge dance needed before it's real.
+- **Update task status as you go** (`POST /tasks/{id} {"status": "...", "notes": "..."}`), not just at the end — another agent deciding what to pick up next is reading it live. And update your own agent record (`POST /agents/{id}`) when you go idle or switch tasks.
+- **The coordination server is the only source of truth for claims.** If you were told your assignment some other way (a separate notes file like the stray `agents.md`, a message, an out-of-band list), reconcile it against `GET /tasks` before starting — don't trust an assignment that hasn't been cross-checked against the live server, and don't leave a second coordination file around that can drift out of sync with it.
 
 ## Environment notes
 
