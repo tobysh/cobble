@@ -1,0 +1,100 @@
+//! Permission enforcement.
+//!
+//! CLAUDE.md: "Plugin host calls are deny-by-default. Every new host
+//! function `cobble-plugin-host` exposes needs an explicit permission check
+//! against the calling plugin's manifest before it's usable." This module is
+//! that check. Every `impl host::Host for HostState` method in `host.rs`
+//! (other than `log`, which is unconditionally permitted) calls
+//! [`Granted::require`] before doing anything else.
+
+use crate::manifest::Permissions;
+
+/// A single grantable capability, at the granularity the M4 WIT surface
+/// needs. Deliberately a closed enum, not a free-form string — every variant
+/// here must correspond to a real host function's gate, so an unused
+/// permission (or a host function with no gate) is a compile-time-visible
+/// mismatch rather than a typo waiting to happen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Permission {
+    ReadPages,
+    WritePages,
+}
+
+impl Permission {
+    fn granted_by(self, permissions: &Permissions) -> bool {
+        match self {
+            Permission::ReadPages => permissions.read_pages,
+            Permission::WritePages => permissions.write_pages,
+        }
+    }
+}
+
+/// A resolved, read-only view of one plugin instance's granted permissions —
+/// what `HostState` actually consults on every gated call. Built once from a
+/// parsed [`Manifest`](crate::manifest::Manifest) at plugin-load time and
+/// carried for the lifetime of the instance; a manifest can't be mutated out
+/// from under a running instance mid-call.
+#[derive(Debug, Clone)]
+pub struct Granted {
+    permissions: Permissions,
+}
+
+/// Denied — the calling plugin's manifest does not grant `permission`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("permission denied: plugin manifest does not grant {permission:?}")]
+pub struct PermissionDenied {
+    pub permission: Permission,
+}
+
+impl Granted {
+    pub fn new(permissions: Permissions) -> Self {
+        Self { permissions }
+    }
+
+    /// Returns `Ok(())` if `permission` is granted, `Err(PermissionDenied)`
+    /// otherwise. Every gated host function calls this first, before doing
+    /// any work, per CLAUDE.md's deny-by-default rule.
+    pub fn require(&self, permission: Permission) -> Result<(), PermissionDenied> {
+        if permission.granted_by(&self.permissions) {
+            Ok(())
+        } else {
+            Err(PermissionDenied { permission })
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn permissions(read_pages: bool, write_pages: bool) -> Permissions {
+        Permissions {
+            read_pages,
+            write_pages,
+            network: Vec::new(),
+            events: Vec::new(),
+            custom_ui: false,
+        }
+    }
+
+    #[test]
+    fn denies_when_not_granted() {
+        let granted = Granted::new(permissions(false, false));
+        let err = granted.require(Permission::ReadPages).unwrap_err();
+        assert_eq!(err.permission, Permission::ReadPages);
+    }
+
+    #[test]
+    fn allows_when_granted() {
+        let granted = Granted::new(permissions(true, false));
+        assert!(granted.require(Permission::ReadPages).is_ok());
+        assert!(granted.require(Permission::WritePages).is_err());
+    }
+
+    #[test]
+    fn permissions_are_independent() {
+        let granted = Granted::new(permissions(false, true));
+        assert!(granted.require(Permission::ReadPages).is_err());
+        assert!(granted.require(Permission::WritePages).is_ok());
+    }
+}

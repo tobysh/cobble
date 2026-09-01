@@ -1,0 +1,92 @@
+// Cobble plugin interface — Component Model (WIT) package.
+//
+// Scope note: this is deliberately the M4 MVP surface, not the full
+// architecture-doc vision. `docs/ARCHITECTURE.md`'s "Plugin system" section
+// describes a larger eventual host API (query-pages, create-page,
+// subscribe-event/on-event, http-fetch, register-slash-command,
+// register-sidebar-panel, register-block-type, the `custom_ui` iframe escape
+// hatch). M4's stated scope is `hello-world` + `PluginBlockNode` +
+// `UiSchemaRenderer` — i.e. a plugin that reads/writes its own block's data
+// and renders a declarative UI schema for it. Everything else above is left
+// as follow-up scope for M5 and is intentionally NOT defined here yet, so
+// this world can grow additively (new interfaces / new functions) without a
+// breaking rework of what M4 ships against.
+package cobble:plugin@0.1.0;
+
+/// Shared types used by both directions of the interface.
+interface types {
+    /// Coarse host-side error returned to a plugin. Deliberately a payload-free
+    /// enum (not a record with a string message) so it flattens to a single
+    /// core `i32` in the Component Model canonical ABI — keeps host->guest
+    /// error returns simple to reason about (and, not incidentally, to
+    /// hand-author as WAT test fixtures) while still distinguishing the cases
+    /// a plugin author needs to branch on.
+    enum host-error {
+        /// The calling plugin's manifest does not grant the permission this
+        /// call requires. See `crates/cobble-plugin-host/src/permissions.rs`.
+        permission-denied,
+        /// The referenced page or block does not exist.
+        not-found,
+        /// Arguments were structurally invalid (e.g. data-json did not parse).
+        invalid-argument,
+        /// Anything else (host-side failure unrelated to plugin input).
+        internal,
+    }
+}
+
+/// Host-provided functions — imported by the plugin, called from guest code.
+/// Every function here (other than `log`) is gated by a permission in the
+/// plugin's manifest (`plugin.toml`, `[permissions]`); see
+/// `crates/cobble-plugin-host/src/permissions.rs` for the enforcement and
+/// `crates/cobble-plugin-host/src/host.rs` for where each check lives.
+interface host {
+    use types.{host-error};
+
+    /// Read the plugin-owned `data` JSON blob for one of this plugin's own
+    /// `plugin_block` blocks (`attrs = {plugin_id, block_type, data}` per
+    /// `docs/ARCHITECTURE.md#file-format--storage`). Requires `read_pages`.
+    ///
+    /// NOTE: not yet wired to `cobble-storage` (that crate is another
+    /// in-flight agent's active surface — see task constraints). The host
+    /// side implementation currently returns `not-found` for everything;
+    /// wiring a real page/block lookup through `cobble-storage` is follow-up
+    /// scope once that dependency is safe to add.
+    get-block-data: func(page-id: string, block-id: string) -> result<string, host-error>;
+
+    /// Overwrite the plugin-owned `data` JSON blob for one of this plugin's
+    /// own blocks. Requires `write_pages`.
+    ///
+    /// Same storage-wiring caveat as `get-block-data` above — this is the
+    /// permission-checked entry point; the actual file write is follow-up
+    /// scope.
+    update-block-data: func(page-id: string, block-id: string, data-json: string) -> result<_, host-error>;
+
+    /// Best-effort diagnostic logging. Always permitted — logging a plugin's
+    /// own debug output isn't a capability worth gating.
+    log: func(message: string);
+}
+
+/// Guest-provided functions — exported by the plugin, called from the host.
+interface guest {
+    use types.{host-error};
+
+    /// Called once right after instantiation so the host can confirm the
+    /// plugin is alive and learn which API version it was built against
+    /// (a plugin built against a newer/older `cobble-plugin.wit` than the
+    /// host can degrade gracefully instead of failing opaquely on first
+    /// real call).
+    init: func() -> u32;
+
+    /// Render one `plugin_block` instance's data into a UI-schema JSON
+    /// document (the vocabulary `frontend/src/plugin-runtime/UiSchemaRenderer.tsx`
+    /// renders through the app's own themed components — see
+    /// `docs/ARCHITECTURE.md#plugin-system`). Called by the host whenever a
+    /// `plugin_block` of one of this plugin's contributed `block_types`
+    /// needs (re)rendering.
+    render-block: func(block-type: string, data-json: string) -> result<string, host-error>;
+}
+
+world plugin {
+    import host;
+    export guest;
+}
