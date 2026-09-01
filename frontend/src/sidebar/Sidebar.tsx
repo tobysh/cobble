@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Calendar, ChevronRight, Moon, Plus, Search, Sun, SunMoon } from 'lucide-react'
+import { Calendar, ChevronRight, Moon, Plus, Search, Sun, SunMoon, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { hoverLift, hoverTransition, tapShrink } from '../theme/motion'
 import { useWorkspace } from '../state/store'
@@ -19,6 +19,7 @@ function PageTreeItem({ pageId, depth }: { pageId: string; depth: number }) {
   const isActive = useWorkspace((s) => s.view.kind === 'page' && s.view.pageId === pageId)
   const toggleExpanded = useWorkspace((s) => s.toggleTreeExpanded)
   const openPage = useWorkspace((s) => s.openPage)
+  const deletePage = useWorkspace((s) => s.deletePage)
 
   if (!page) return null
   const hasChildren = childIds.length > 0
@@ -45,6 +46,16 @@ function PageTreeItem({ pageId, depth }: { pageId: string; depth: number }) {
         </span>
         <span className="tree-icon">{page.icon}</span>
         <span className="tree-title">{page.title}</span>
+        <span
+          className="tree-delete"
+          title="Move to trash"
+          onClick={(e) => {
+            e.stopPropagation()
+            void deletePage(pageId)
+          }}
+        >
+          <Trash2 size={12} />
+        </span>
       </motion.button>
       {hasChildren && expanded && (
         <div className="tree-children">
@@ -58,7 +69,7 @@ function PageTreeItem({ pageId, depth }: { pageId: string; depth: number }) {
 }
 
 export function Sidebar() {
-  const rootIds = useWorkspace((s) => s.children.root) ?? []
+  const rootIds = useWorkspace((s) => s.children.root) ?? [] // 'root' sentinel — see `childKey()` in state/store.ts
   const theme = useWorkspace((s) => s.theme)
   const setTheme = useWorkspace((s) => s.setTheme)
   const openCalendar = useWorkspace((s) => s.openCalendar)
@@ -109,7 +120,7 @@ export function Sidebar() {
           className="tree-row tree-row--new"
           onMouseEnter={() => setNewPageHover(true)}
           onMouseLeave={() => setNewPageHover(false)}
-          onClick={() => createPage('root', 'Untitled')}
+          onClick={() => void createPage(null, 'Untitled')}
         >
           <span className="tree-caret tree-caret--hidden" />
           <Plus size={14} style={{ opacity: newPageHover ? 1 : 0.6 }} />

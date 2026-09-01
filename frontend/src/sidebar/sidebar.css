@@ -131,11 +131,32 @@
 }
 
 .tree-title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .tree-title--muted {
   color: var(--text-tertiary);
+}
+
+.tree-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  opacity: 0;
+}
+.tree-row:hover .tree-delete {
+  opacity: 1;
+}
+.tree-delete:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .sidebar-theme-switcher {

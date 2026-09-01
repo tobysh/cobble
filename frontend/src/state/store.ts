@@ -1,85 +1,69 @@
 import { create } from 'zustand'
-import { CHILDREN, PAGES, nextId } from './mockData'
-import type { Block, BlockType, Page, Theme } from './types'
+import { api } from './api'
+import { newUlid } from './ulid'
+import type { Block, Page, PageId, Theme } from './types'
 
-type View = { kind: 'page'; pageId: string } | { kind: 'calendar' }
+// Sentinel key used in `children`/`expandedTree` for the workspace root,
+// since the backend's root parent is `null` (no id to key a JS object with).
+const ROOT_KEY = 'root'
+const JOURNAL_TITLE = 'Journal'
+
+type View =
+  | { kind: 'loading' }
+  | { kind: 'empty' }
+  | { kind: 'page'; pageId: PageId }
+  | { kind: 'calendar' }
 
 interface WorkspaceState {
   theme: Theme
   setTheme: (theme: Theme) => void
 
-  pages: Record<string, Page>
-  children: Record<string, string[]>
+  pages: Record<PageId, Page>
+  children: Record<string, PageId[]>
 
   view: View
-  openPage: (pageId: string) => void
+  openPage: (pageId: PageId) => void
   openCalendar: () => void
 
   expandedTree: Set<string>
-  toggleTreeExpanded: (pageId: string) => void
-
-  expandedBlocks: Set<string>
-  toggleBlockExpanded: (blockId: string) => void
+  toggleTreeExpanded: (pageId: PageId) => void
 
   paletteOpen: boolean
   setPaletteOpen: (open: boolean) => void
 
-  toggleTodo: (pageId: string, blockPath: number[]) => void
-  updateBlockText: (pageId: string, blockPath: number[], text: string) => void
-  insertBlockAfter: (pageId: string, blockPath: number[], type: BlockType) => void
-  setBlockType: (pageId: string, blockPath: number[], type: BlockType) => void
-  updateTableCell: (pageId: string, blockPath: number[], row: number, col: number, text: string) => void
+  loadWorkspace: () => Promise<void>
 
-  updatePageTitle: (pageId: string, title: string) => void
-  createPage: (parentId: string, title: string) => string
-  createDailyNote: (dateISO: string, label: string) => string
+  /** Persists a page's full block tree through `update_page_blocks`. */
+  saveBlocks: (pageId: PageId, blocks: Block[]) => Promise<void>
+
+  /**
+   * Local-only for now: `pages.rs` has no rename/update-title command (only
+   * `update_page_blocks`, which never touches `title`), so an edit here does
+   * not survive an app restart. See the PR description for this gap.
+   */
+  updatePageTitle: (pageId: PageId, title: string) => void
+
+  createPage: (parentId: PageId | null, title: string) => Promise<PageId>
+  createDailyNote: (dateISO: string, label: string) => Promise<PageId>
+  deletePage: (pageId: PageId) => Promise<void>
 }
 
-function mapBlockAtPath(
-  blocks: Block[],
-  path: number[],
-  fn: (b: Block) => Block,
-): Block[] {
-  const [head, ...rest] = path
-  return blocks.map((b, i) => {
-    if (i !== head) return b
-    if (rest.length === 0) return fn(b)
-    return { ...b, children: mapBlockAtPath(b.children ?? [], rest, fn) }
-  })
+function childKey(parentId: PageId | null): string {
+  return parentId ?? ROOT_KEY
 }
-
-function insertAfterPath(blocks: Block[], path: number[], newBlock: Block): Block[] {
-  const [head, ...rest] = path
-  if (rest.length === 0) {
-    const copy = blocks.slice()
-    copy.splice(head + 1, 0, newBlock)
-    return copy
-  }
-  return blocks.map((b, i) =>
-    i === head ? { ...b, children: insertAfterPath(b.children ?? [], rest, newBlock) } : b,
-  )
-}
-
-const emptyBlockOfType = (type: BlockType): Block => ({
-  id: nextId('blk'),
-  type,
-  text: '',
-  ...(type === 'todo' ? { checked: false } : {}),
-  ...(type === 'table' ? { rows: [['', '', '']] } : {}),
-})
 
 export const useWorkspace = create<WorkspaceState>((set, get) => ({
   theme: 'dark',
   setTheme: (theme) => set({ theme }),
 
-  pages: PAGES,
-  children: CHILDREN,
+  pages: {},
+  children: {},
 
-  view: { kind: 'page', pageId: 'pg_welcome' },
+  view: { kind: 'loading' },
   openPage: (pageId) => set({ view: { kind: 'page', pageId }, paletteOpen: false }),
   openCalendar: () => set({ view: { kind: 'calendar' }, paletteOpen: false }),
 
-  expandedTree: new Set(['pg_roadmap', 'pg_journal']),
+  expandedTree: new Set(),
   toggleTreeExpanded: (pageId) =>
     set((s) => {
       const next = new Set(s.expandedTree)
@@ -88,65 +72,53 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       return { expandedTree: next }
     }),
 
-  expandedBlocks: new Set(),
-  toggleBlockExpanded: (blockId) =>
-    set((s) => {
-      const next = new Set(s.expandedBlocks)
-      if (next.has(blockId)) next.delete(blockId)
-      else next.add(blockId)
-      return { expandedBlocks: next }
-    }),
-
   paletteOpen: false,
   setPaletteOpen: (open) => set({ paletteOpen: open }),
 
-  toggleTodo: (pageId, blockPath) =>
-    set((s) => {
-      const page = s.pages[pageId]
-      if (!page) return s
-      const blocks = mapBlockAtPath(page.blocks, blockPath, (b) => ({ ...b, checked: !b.checked }))
-      return { pages: { ...s.pages, [pageId]: { ...page, blocks } } }
-    }),
+  // Walks the whole page tree via `list_children`, then fetches each page's
+  // full content via `get_page` (blocks + properties, which `list_children`'s
+  // lighter-weight `PageSummary` doesn't carry). N+1 IPC round trips, fine at
+  // M1's workspace scale — a real `cobble-index` "list all pages with
+  // properties" query would replace this once that surface exists (see the
+  // sibling `agent/cobble-index-watcher-wiring` work).
+  loadWorkspace: async () => {
+    const pages: Record<PageId, Page> = {}
+    const children: Record<string, PageId[]> = {}
 
-  updateBlockText: (pageId, blockPath, text) =>
-    set((s) => {
-      const page = s.pages[pageId]
-      if (!page) return s
-      const blocks = mapBlockAtPath(page.blocks, blockPath, (b) => ({ ...b, text }))
-      return { pages: { ...s.pages, [pageId]: { ...page, blocks } } }
-    }),
+    async function walk(parentId: PageId | null): Promise<void> {
+      const summaries = await api.listChildren(parentId)
+      children[childKey(parentId)] = summaries.map((s) => s.id)
+      await Promise.all(
+        summaries.map(async (summary) => {
+          const full = await api.getPage(summary.id)
+          if (full) pages[summary.id] = full
+          await walk(summary.id)
+        }),
+      )
+    }
 
-  insertBlockAfter: (pageId, blockPath, type) =>
-    set((s) => {
-      const page = s.pages[pageId]
-      if (!page) return s
-      const blocks = insertAfterPath(page.blocks, blockPath, emptyBlockOfType(type))
-      return { pages: { ...s.pages, [pageId]: { ...page, blocks } } }
-    }),
+    await walk(null)
 
-  setBlockType: (pageId, blockPath, type) =>
-    set((s) => {
-      const page = s.pages[pageId]
-      if (!page) return s
-      const blocks = mapBlockAtPath(page.blocks, blockPath, (b) => ({
-        ...emptyBlockOfType(type),
-        id: b.id,
-        children: b.children,
-      }))
-      return { pages: { ...s.pages, [pageId]: { ...page, blocks } } }
-    }),
+    const rootIds = children[ROOT_KEY] ?? []
+    set({
+      pages,
+      children,
+      view: rootIds.length > 0 ? { kind: 'page', pageId: rootIds[0] } : { kind: 'empty' },
+    })
+  },
 
-  updateTableCell: (pageId, blockPath, row, col, text) =>
+  saveBlocks: async (pageId, blocks) => {
+    const saved = await api.updatePageBlocks(pageId, blocks)
     set((s) => {
-      const page = s.pages[pageId]
-      if (!page) return s
-      const blocks = mapBlockAtPath(page.blocks, blockPath, (b) => {
-        const rows = (b.rows ?? []).map((r) => r.slice())
-        if (rows[row]) rows[row][col] = text
-        return { ...b, rows }
-      })
-      return { pages: { ...s.pages, [pageId]: { ...page, blocks } } }
-    }),
+      const existing = s.pages[pageId]
+      if (!existing) return s
+      // Keep the client-side title edit (see `updatePageTitle`) — the
+      // backend response's `title` is whatever was last written to disk,
+      // which `update_page_blocks` never changes, so this is just carrying
+      // forward the freshest blocks/properties.
+      return { pages: { ...s.pages, [pageId]: { ...existing, blocks: saved.blocks, properties: saved.properties } } }
+    })
+  },
 
   updatePageTitle: (pageId, title) =>
     set((s) => {
@@ -155,57 +127,101 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       return { pages: { ...s.pages, [pageId]: { ...page, title } } }
     }),
 
-  createPage: (parentId, title) => {
-    const id = nextId('pg')
-    set((s) => ({
-      pages: {
-        ...s.pages,
-        [id]: {
-          id,
-          title,
-          icon: '📄',
-          blocks: [{ id: nextId('blk'), type: 'heading', headingLevel: 1, text: title }],
-        },
-      },
-      children: {
-        ...s.children,
-        [parentId]: [...(s.children[parentId] ?? []), id],
-      },
-      expandedTree: new Set(s.expandedTree).add(parentId),
-    }))
-    get().openPage(id)
-    return id
+  createPage: async (parentId, title) => {
+    const page = await api.createPage(title, parentId)
+    set((s) => {
+      const key = childKey(parentId)
+      const next = new Set(s.expandedTree)
+      if (parentId) next.add(parentId)
+      return {
+        pages: { ...s.pages, [page.id]: page },
+        children: { ...s.children, [key]: [...(s.children[key] ?? []), page.id] },
+        expandedTree: next,
+      }
+    })
+    get().openPage(page.id)
+    return page.id
   },
 
-  createDailyNote: (dateISO, label) => {
-    const existing = Object.values(get().pages).find((p) => p.isDailyNote && p.date === dateISO)
-    if (existing) {
-      get().openPage(existing.id)
-      return existing.id
+  // No backend command sets page `properties` (see `updatePageTitle`'s
+  // comment — `create_page` only takes `title`/`parent_id`), so the `date` /
+  // `_is_daily_note` markers used to find a daily note again are annotated
+  // client-side only. They're lost on restart, at which point this will
+  // create a duplicate note for the same day instead of reopening it — a
+  // real fix needs a backend command that can write `properties` at
+  // creation (or a follow-up `update_page_properties`).
+  createDailyNote: async (dateISO, label) => {
+    const state = get()
+    const rootIds = state.children[ROOT_KEY] ?? []
+    let journalId = rootIds.find((id) => state.pages[id]?.title === JOURNAL_TITLE)
+
+    if (!journalId) {
+      journalId = await state.createPage(null, JOURNAL_TITLE)
     }
-    const id = nextId('pg')
+
+    const journalChildren = get().children[journalId] ?? []
+    const existing = journalChildren.find((id) => get().pages[id]?.date === dateISO)
+    if (existing) {
+      get().openPage(existing)
+      return existing
+    }
+
+    const page = await api.createPage(label, journalId)
+    const annotated: Page = { ...page, date: dateISO, isDailyNote: true }
+    const headingBlock: Block = {
+      id: newUlid(),
+      type: 'heading',
+      attrs: { level: 2 },
+      content: [{ text: label }],
+    }
+    const paragraphBlock: Block = { id: newUlid(), type: 'paragraph', content: [{ text: '' }] }
+    const saved = await api.updatePageBlocks(page.id, [headingBlock, paragraphBlock])
+
     set((s) => ({
-      pages: {
-        ...s.pages,
-        [id]: {
-          id,
-          title: label,
-          icon: '📅',
-          date: dateISO,
-          isDailyNote: true,
-          blocks: [
-            { id: nextId('blk'), type: 'heading', headingLevel: 2, text: label },
-            { id: nextId('blk'), type: 'paragraph', text: '' },
-          ],
-        },
-      },
-      children: {
-        ...s.children,
-        pg_journal: [...(s.children.pg_journal ?? []), id],
-      },
-      expandedTree: new Set(s.expandedTree).add('pg_journal'),
+      pages: { ...s.pages, [page.id]: { ...annotated, blocks: saved.blocks } },
+      children: { ...s.children, [journalId!]: [...journalChildren, page.id] },
+      expandedTree: new Set(s.expandedTree).add(journalId!),
     }))
-    get().openPage(id)
-    return id
+    get().openPage(page.id)
+    return page.id
+  },
+
+  deletePage: async (pageId) => {
+    const state = get()
+    const page = state.pages[pageId]
+    if (!page) return
+
+    // Cascade: `trash_page` only moves the one file, but leaving its
+    // children pointed at a now-trashed parent would orphan them from the
+    // tree (they'd stop showing up under any `list_children` call), so trash
+    // the whole subtree from the UI side.
+    const toDelete: PageId[] = []
+    const collect = (id: PageId) => {
+      toDelete.push(id)
+      for (const childId of state.children[id] ?? []) collect(childId)
+    }
+    collect(pageId)
+
+    await Promise.all(toDelete.map((id) => api.deletePage(id)))
+
+    set((s) => {
+      const pages = { ...s.pages }
+      const children = { ...s.children }
+      for (const id of toDelete) {
+        delete pages[id]
+        delete children[id]
+      }
+      const parentKey = childKey(page.parentId)
+      children[parentKey] = (children[parentKey] ?? []).filter((id) => id !== pageId)
+
+      const view =
+        s.view.kind === 'page' && toDelete.includes(s.view.pageId)
+          ? children[ROOT_KEY]?.length
+            ? { kind: 'page' as const, pageId: children[ROOT_KEY][0] }
+            : { kind: 'empty' as const }
+          : s.view
+
+      return { pages, children, view }
+    })
   },
 }))

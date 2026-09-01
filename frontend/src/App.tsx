@@ -7,15 +7,49 @@ import { useWorkspace } from './state/store'
 import './theme/tokens.css'
 import './App.css'
 
+function MainView() {
+  const view = useWorkspace((s) => s.view)
+  const createPage = useWorkspace((s) => s.createPage)
+
+  switch (view.kind) {
+    case 'loading':
+      return <div className="app-status">Loading workspace…</div>
+    case 'empty':
+      return (
+        <div className="app-status">
+          <p>No pages yet.</p>
+          <button type="button" className="app-status-action" onClick={() => void createPage(null, 'Untitled')}>
+            Create your first page
+          </button>
+        </div>
+      )
+    case 'calendar':
+      return <CalendarView />
+    case 'page':
+      // Keyed by pageId so switching pages remounts the Lexical editor with
+      // a fresh `initialConfig` instead of trying to swap its content in
+      // place (see the comment on `initialConfig` in `PageView.tsx`).
+      return <PageView key={view.pageId} pageId={view.pageId} />
+  }
+}
+
 function App() {
   const theme = useWorkspace((s) => s.theme)
-  const view = useWorkspace((s) => s.view)
   const paletteOpen = useWorkspace((s) => s.paletteOpen)
   const setPaletteOpen = useWorkspace((s) => s.setPaletteOpen)
+  const loadWorkspace = useWorkspace((s) => s.loadWorkspace)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    void loadWorkspace()
+    // Runs once on mount — `loadWorkspace` is a stable zustand action
+    // reference, and M1 has no live-reload/multi-window story yet (that's
+    // `cobble-watcher`'s territory) so there's no reason to refetch later.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -32,7 +66,7 @@ function App() {
     <div className="app-shell">
       <Sidebar />
       <main className="app-main">
-        {view.kind === 'calendar' ? <CalendarView /> : <PageView pageId={view.pageId} />}
+        <MainView />
       </main>
       <CommandPalette />
     </div>
