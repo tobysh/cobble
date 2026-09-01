@@ -247,3 +247,23 @@
 .db-tag-remove:hover {
   opacity: 1;
 }
+
+/* Compact cell variants — used by `ListView`'s property strip. Same editors
+   as the table cells above, just without table-row-height padding, so a few
+   of them fit in a single dense line. */
+.db-cell-input--compact {
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+}
+.db-cell-input--compact:focus {
+  box-shadow: inset 0 0 0 1.5px var(--focus-ring);
+}
+
+.db-checkbox--compact {
+  margin: 0;
+}
+
+.db-select-cell--compact .db-select-summary {
+  min-height: 0;
+  padding: 3px 2px;
+}

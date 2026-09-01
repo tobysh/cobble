@@ -24,9 +24,10 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { ListView } from '../database/ListView'
 import { TableView } from '../database/TableView'
 import { useWorkspace } from '../state/store'
-import type { Block, BlockId, BlockType, PageId } from '../state/types'
+import type { Block, BlockId, BlockType, PageId, ViewKind } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
 import { editorStateToBlocks, populateEditorFromBlocks } from './serialization'
 import { SlashMenu } from './SlashMenu'
@@ -353,10 +354,22 @@ function EditorBody({
   )
 }
 
+// Minimal, additive view-switcher tab list for `kind: 'database'` pages —
+// table is the only view every database already has; other kinds only
+// appear once something actually renders them below. Sibling M3 tasks
+// (board/gallery/calendar) are expected to append their own `{ kind, label }`
+// entry here rather than restructure this switch, so concurrent additions
+// stay a trivial one-line-each merge.
+const DATABASE_VIEW_TABS: { kind: ViewKind; label: string }[] = [
+  { kind: 'table', label: 'Table' },
+  { kind: 'list', label: 'List' },
+]
+
 export function PageView({ pageId }: { pageId: PageId }) {
   const page = useWorkspace((s) => s.pages[pageId])
   const updatePageTitle = useWorkspace((s) => s.updatePageTitle)
   const idMapRef = useRef<Map<NodeKey, BlockId>>(new Map())
+  const [databaseView, setDatabaseView] = useState<ViewKind>('table')
 
   const initialBlocks = useMemo<Block[]>(() => page?.blocks ?? [], [page])
 
@@ -395,15 +408,32 @@ export function PageView({ pageId }: { pageId: PageId }) {
     </div>
   )
 
-  // A database page (`kind: 'database'`) renders its schema as a table
-  // instead of the block editor — see `frontend/src/database/TableView.tsx`.
-  // Board/list/gallery/calendar views are later M3 tasks that will branch on
-  // the page's *view* selection here too; table is the only one today.
+  // A database page (`kind: 'database'`) renders its schema through one of
+  // several interchangeable views instead of the block editor — see
+  // `frontend/src/database/{TableView,ListView}.tsx`. `databaseView` is
+  // local, unpersisted UI state (not part of `DatabaseSchema.views` yet); a
+  // real per-database saved-view system is a later task.
   if (page.kind === 'database') {
     return (
       <div className="page-view page-view--database">
         {header}
-        <TableView databaseId={pageId} schema={page.databaseSchema} />
+        <div className="db-view-tabs">
+          {DATABASE_VIEW_TABS.map((tab) => (
+            <button
+              key={tab.kind}
+              type="button"
+              className={tab.kind === databaseView ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+              onClick={() => setDatabaseView(tab.kind)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        {databaseView === 'list' ? (
+          <ListView databaseId={pageId} schema={page.databaseSchema} />
+        ) : (
+          <TableView databaseId={pageId} schema={page.databaseSchema} />
+        )}
       </div>
     )
   }

@@ -13,6 +13,31 @@
   max-width: none;
 }
 
+/* Database view switcher (table/list/…, see `PageView`'s `DATABASE_VIEW_TABS`) */
+.db-view-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 4px 12px;
+}
+.db-view-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.db-view-tab:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+.db-view-tab--active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
 .page-header {
   display: flex;
   align-items: center;

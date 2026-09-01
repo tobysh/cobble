@@ -55,22 +55,34 @@ export function PropertyCell({
   definition,
   value,
   onChange,
+  compact = false,
 }: {
   definition: PropertyDefinition
   value: PropertyValue | undefined
   onChange: (value: PropertyValue | null) => void
+  /** Denser rendering for `ListView`'s property strip — same editors, smaller
+   * chrome (no full-height table-cell padding). Purely a styling hook: every
+   * `PropertyType` still renders/edits exactly as it does in `TableView`. */
+  compact?: boolean
 }) {
   const type = definition.propertyType
 
   switch (type.type) {
     case 'text':
-      return <TextCell value={value?.type === 'text' ? value.value : ''} onChange={(v) => onChange(v === '' ? null : { type: 'text', value: v })} />
+      return (
+        <TextCell
+          value={value?.type === 'text' ? value.value : ''}
+          onChange={(v) => onChange(v === '' ? null : { type: 'text', value: v })}
+          compact={compact}
+        />
+      )
 
     case 'number':
       return (
         <NumberCell
           value={value?.type === 'number' ? value.value : null}
           onChange={(v) => onChange(v === null ? null : { type: 'number', value: v })}
+          compact={compact}
         />
       )
 
@@ -79,6 +91,7 @@ export function PropertyCell({
         <CheckboxCell
           checked={value?.type === 'checkbox' ? value.value : false}
           onChange={(v) => onChange({ type: 'checkbox', value: v })}
+          compact={compact}
         />
       )
 
@@ -87,6 +100,7 @@ export function PropertyCell({
         <DateCell
           value={value?.type === 'date' ? value.value : ''}
           onChange={(v) => onChange(v === '' ? null : { type: 'date', value: v })}
+          compact={compact}
         />
       )
 
@@ -96,6 +110,7 @@ export function PropertyCell({
           options={type.config.options}
           selected={value?.type === 'select' ? value.value : null}
           onChange={(v) => onChange(v === null ? null : { type: 'select', value: v })}
+          compact={compact}
         />
       )
 
@@ -105,12 +120,21 @@ export function PropertyCell({
           options={type.config.options}
           selected={value?.type === 'multi_select' ? value.value : []}
           onChange={(v) => onChange(v.length === 0 ? null : { type: 'multi_select', value: v })}
+          compact={compact}
         />
       )
   }
 }
 
-function TextCell({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function TextCell({
+  value,
+  onChange,
+  compact,
+}: {
+  value: string
+  onChange: (value: string) => void
+  compact?: boolean
+}) {
   const [draft, setDraft] = useState(value)
   // Resyncs the edit buffer when `value` changes for a reason other than
   // this input's own `onChange` (a row reload, another view editing the
@@ -124,7 +148,7 @@ function TextCell({ value, onChange }: { value: string; onChange: (value: string
 
   return (
     <input
-      className="db-cell-input"
+      className={compact ? 'db-cell-input db-cell-input--compact' : 'db-cell-input'}
       type="text"
       value={draft}
       placeholder="Empty"
@@ -139,7 +163,15 @@ function TextCell({ value, onChange }: { value: string; onChange: (value: string
   )
 }
 
-function NumberCell({ value, onChange }: { value: number | null; onChange: (value: number | null) => void }) {
+function NumberCell({
+  value,
+  onChange,
+  compact,
+}: {
+  value: number | null
+  onChange: (value: number | null) => void
+  compact?: boolean
+}) {
   const [draft, setDraft] = useState(value === null ? '' : String(value))
   const [prevValue, setPrevValue] = useState(value)
   if (value !== prevValue) {
@@ -158,7 +190,7 @@ function NumberCell({ value, onChange }: { value: number | null; onChange: (valu
 
   return (
     <input
-      className="db-cell-input db-cell-input--number"
+      className={compact ? 'db-cell-input db-cell-input--number db-cell-input--compact' : 'db-cell-input db-cell-input--number'}
       type="number"
       value={draft}
       placeholder="Empty"
@@ -171,21 +203,43 @@ function NumberCell({ value, onChange }: { value: number | null; onChange: (valu
   )
 }
 
-function CheckboxCell({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+function CheckboxCell({
+  checked,
+  onChange,
+  compact,
+}: {
+  checked: boolean
+  onChange: (value: boolean) => void
+  compact?: boolean
+}) {
+  const base = checked ? 'db-checkbox db-checkbox--checked' : 'db-checkbox'
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
-      className={checked ? 'db-checkbox db-checkbox--checked' : 'db-checkbox'}
+      className={compact ? `${base} db-checkbox--compact` : base}
       onClick={() => onChange(!checked)}
     />
   )
 }
 
-function DateCell({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function DateCell({
+  value,
+  onChange,
+  compact,
+}: {
+  value: string
+  onChange: (value: string) => void
+  compact?: boolean
+}) {
   return (
-    <input className="db-cell-input" type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+    <input
+      className={compact ? 'db-cell-input db-cell-input--compact' : 'db-cell-input'}
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   )
 }
 
@@ -193,10 +247,12 @@ function SelectCell({
   options,
   selected,
   onChange,
+  compact,
 }: {
   options: SelectOption[]
   selected: string | null
   onChange: (value: string | null) => void
+  compact?: boolean
 }) {
   const ref = useRef<HTMLDetailsElement>(null)
   const [open, setOpen] = useState(false)
@@ -204,7 +260,11 @@ function SelectCell({
   const current = options.find((o) => o.name === selected) ?? null
 
   return (
-    <details ref={ref} className="db-select-cell" onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details
+      ref={ref}
+      className={compact ? 'db-select-cell db-select-cell--compact' : 'db-select-cell'}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
       <summary className="db-select-summary">
         {current ? <TagPill name={current.name} color={current.color} /> : <span className="db-cell-empty">Empty</span>}
       </summary>
@@ -232,10 +292,12 @@ function MultiSelectCell({
   options,
   selected,
   onChange,
+  compact,
 }: {
   options: SelectOption[]
   selected: string[]
   onChange: (value: string[]) => void
+  compact?: boolean
 }) {
   const ref = useRef<HTMLDetailsElement>(null)
   const [open, setOpen] = useState(false)
@@ -247,7 +309,11 @@ function MultiSelectCell({
   }
 
   return (
-    <details ref={ref} className="db-select-cell" onToggle={(e) => setOpen(e.currentTarget.open)}>
+    <details
+      ref={ref}
+      className={compact ? 'db-select-cell db-select-cell--compact' : 'db-select-cell'}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+    >
       <summary className="db-select-summary">
         {selected.length === 0 ? (
           <span className="db-cell-empty">Empty</span>
