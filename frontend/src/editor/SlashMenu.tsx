@@ -1,29 +1,20 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  CheckSquare,
-  ChevronRight as ToggleIcon,
-  Code2,
-  Heading1,
-  ImageIcon,
-  Minus,
-  Quote,
-  Table as TableIcon,
-  Text,
-} from 'lucide-react'
+import { CheckSquare, Heading1, Minus, Text } from 'lucide-react'
 import { dropdownVariants, listItemVariants } from '../theme/motion'
 import type { BlockType } from '../state/types'
 import './editor.css'
 
+// The M1 minimal node set only — paragraph/heading/todo/divider (see the
+// comment on `EDITOR_NODES` in `editor/nodes.ts`). The richer block
+// vocabulary `cobble-core` already reserves (toggle/quote/code/table/image/
+// sub_page) isn't wired into the Lexical editor yet — that's M2 per the
+// roadmap page in the workspace itself — so it's left out of this menu
+// rather than offered and silently downgraded to a paragraph on save.
 const OPTIONS: { type: BlockType; label: string; hint: string; icon: typeof Text }[] = [
   { type: 'paragraph', label: 'Text', hint: 'Plain paragraph', icon: Text },
   { type: 'heading', label: 'Heading', hint: 'Section heading', icon: Heading1 },
   { type: 'todo', label: 'To-do', hint: 'Checkbox list item', icon: CheckSquare },
-  { type: 'toggle', label: 'Toggle', hint: 'Collapsible block', icon: ToggleIcon },
-  { type: 'quote', label: 'Quote', hint: 'Callout quote', icon: Quote },
-  { type: 'code', label: 'Code', hint: 'Monospace code block', icon: Code2 },
   { type: 'divider', label: 'Divider', hint: 'Horizontal rule', icon: Minus },
-  { type: 'table', label: 'Table', hint: 'Simple grid', icon: TableIcon },
-  { type: 'image', label: 'Image', hint: 'Placeholder + caption', icon: ImageIcon },
 ]
 
 export function SlashMenu({
