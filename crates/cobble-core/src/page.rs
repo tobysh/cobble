@@ -1,4 +1,5 @@
 use crate::block::Block;
+use crate::database_schema::DatabaseSchema;
 use crate::id::PageId;
 use crate::property::PropertyValue;
 use serde::{Deserialize, Serialize};
@@ -24,9 +25,9 @@ pub enum PageKind {
 /// lives in `parent_id`, not the file path, so moves/renames never touch
 /// other files.
 ///
-/// `database_schema` is left as opaque JSON here rather than a typed shape —
-/// `database_schema + typed properties read/write` is M3 work; `cobble-core`
-/// only needs to preserve the field untouched through M1/M2 round-trips.
+/// `database_schema` is a typed [`DatabaseSchema`] (`kind: Database` pages
+/// only) — see `database_schema.rs` for the property-type vocabulary and row
+/// validation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Page {
     pub format_version: u32,
@@ -40,7 +41,7 @@ pub struct Page {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub properties: BTreeMap<String, PropertyValue>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub database_schema: Option<serde_json::Value>,
+    pub database_schema: Option<DatabaseSchema>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocks: Vec<Block>,
 }
@@ -117,10 +118,15 @@ mod tests {
     }
 
     #[test]
-    fn a_database_page_preserves_opaque_schema_json() {
+    fn a_database_page_round_trips_its_typed_schema() {
+        use crate::database_schema::{DatabaseSchema, PropertyDefinition, PropertyType};
+
         let mut page = Page::new("Tasks");
         page.kind = PageKind::Database;
-        page.database_schema = Some(serde_json::json!({ "properties": {}, "views": [] }));
+        page.database_schema = Some(DatabaseSchema::new(vec![PropertyDefinition::new(
+            "Status",
+            PropertyType::Text,
+        )]));
 
         let json = serde_json::to_string(&page).unwrap();
         let back: Page = serde_json::from_str(&json).unwrap();

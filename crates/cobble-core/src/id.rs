@@ -46,6 +46,7 @@ macro_rules! ulid_id {
 
 ulid_id!(PageId);
 ulid_id!(BlockId);
+ulid_id!(ViewId);
 
 #[cfg(test)]
 mod tests {

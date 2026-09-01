@@ -3,11 +3,16 @@
 //! `cobble-storage`; SQL belongs in `cobble-index`.
 
 mod block;
+mod database_schema;
 mod id;
 mod page;
 mod property;
 
 pub use block::{Block, BlockType, InlineSpan, Mark};
-pub use id::{BlockId, PageId};
+pub use database_schema::{
+    DatabaseSchema, DatabaseView, PropertyDefinition, PropertyType, PropertyValidationError,
+    SelectOption, TagColor, ViewKind,
+};
+pub use id::{BlockId, PageId, ViewId};
 pub use page::{Page, PageKind, CURRENT_FORMAT_VERSION};
 pub use property::PropertyValue;
