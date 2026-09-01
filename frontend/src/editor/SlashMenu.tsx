@@ -1,20 +1,24 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckSquare, Heading1, Minus, Text } from 'lucide-react'
+import { CheckSquare, ChevronRight, Code, FileText, Heading1, Image as ImageIcon, Minus, Quote, Table, Text } from 'lucide-react'
 import { dropdownVariants, listItemVariants } from '../theme/motion'
 import type { BlockType } from '../state/types'
 import './editor.css'
 
-// The M1 minimal node set only — paragraph/heading/todo/divider (see the
-// comment on `EDITOR_NODES` in `editor/nodes.ts`). The richer block
-// vocabulary `cobble-core` already reserves (toggle/quote/code/table/image/
-// sub_page) isn't wired into the Lexical editor yet — that's M2 per the
-// roadmap page in the workspace itself — so it's left out of this menu
-// rather than offered and silently downgraded to a paragraph on save.
+// The full M2 block vocabulary `cobble-core` reserves (see `BlockType` in
+// `state/types.ts`) — everything here now has a matching entry in
+// `editor/nodes.ts`/`editor/serialization.ts` (only `plugin_block`, a
+// separate in-flight task with its own insertion path, is left out).
 const OPTIONS: { type: BlockType; label: string; hint: string; icon: typeof Text }[] = [
   { type: 'paragraph', label: 'Text', hint: 'Plain paragraph', icon: Text },
   { type: 'heading', label: 'Heading', hint: 'Section heading', icon: Heading1 },
   { type: 'todo', label: 'To-do', hint: 'Checkbox list item', icon: CheckSquare },
+  { type: 'toggle', label: 'Toggle', hint: 'Collapsible content', icon: ChevronRight },
+  { type: 'quote', label: 'Quote', hint: 'Block quotation', icon: Quote },
+  { type: 'code', label: 'Code', hint: 'Code block', icon: Code },
   { type: 'divider', label: 'Divider', hint: 'Horizontal rule', icon: Minus },
+  { type: 'image', label: 'Image', hint: 'Upload or embed by URL', icon: ImageIcon },
+  { type: 'table', label: 'Table', hint: 'Basic grid', icon: Table },
+  { type: 'sub_page', label: 'Sub-page', hint: 'Create a nested page', icon: FileText },
 ]
 
 export function SlashMenu({

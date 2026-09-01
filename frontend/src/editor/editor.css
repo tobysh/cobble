@@ -172,6 +172,263 @@
   transform: rotate(45deg);
 }
 
+/* Quote block (`@lexical/rich-text`'s `QuoteNode`, theme key `quote`). */
+.block-quote {
+  margin: 8px 4px;
+  padding: 2px 4px 2px 14px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: 15.5px;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* Code block (`@lexical/code`'s `CodeNode`, theme key `code`). Renders as a
+   `<code>` element, styled to look like a block rather than an inline
+   snippet; no syntax highlighting wired up (out of scope for M2's "basic
+   grid"-level minimalism on the richer block types). */
+.block-code {
+  display: block;
+  margin: 8px 4px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  tab-size: 2;
+}
+
+/* Toggle block — see `editor/nodes/ToggleNode.ts`. `.block-toggle` is the
+   container; the caret is a plain (non-Lexical-managed) button prepended in
+   `createDOM` before the title/content children are reconciled in. */
+.block-toggle {
+  position: relative;
+  margin: 2px 4px;
+  padding-left: 20px;
+}
+.block-toggle-caret {
+  position: absolute;
+  left: -2px;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  transition: transform 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+.block-toggle-caret::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 4px 0 4px 6px;
+  border-color: transparent transparent transparent currentColor;
+  transform: rotate(90deg);
+  transition: transform 0.12s ease;
+}
+.block-toggle--collapsed .block-toggle-caret::before {
+  transform: rotate(0deg);
+}
+.block-toggle-caret:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+.block-toggle-title {
+  color: var(--text-primary);
+  font-size: 15.5px;
+  line-height: 1.55;
+  min-height: 1.55em;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.block-toggle-content {
+  padding-left: 6px;
+  border-left: 2px solid var(--border-hairline);
+  margin-left: 2px;
+}
+.block-toggle--collapsed > .block-toggle-content {
+  display: none;
+}
+
+/* Image block — `editor/nodes/ImageBlockNode.tsx`. */
+.block-image {
+  margin: 10px 4px;
+  padding: 0;
+  border: none;
+}
+.block-image--empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.block-image-icon {
+  display: flex;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.block-image-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.block-image-url-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  padding: 6px 8px;
+}
+.block-image-upload {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.block-image-img {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+}
+.block-image-caption {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 2px 4px;
+}
+
+/* Table block — `editor/nodes/TableBlockNode.tsx`. Deliberately minimal (a
+   basic grid, not full spreadsheet-style editing). */
+.block-table {
+  margin: 10px 4px;
+}
+.block-table-grid {
+  border-collapse: collapse;
+}
+.block-table-grid td {
+  border: 1px solid var(--border-hairline);
+  padding: 0;
+  vertical-align: top;
+}
+.block-table-cell {
+  min-width: 90px;
+  min-height: 1.5em;
+  padding: 6px 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+}
+.block-table-cell:focus {
+  box-shadow: inset 0 0 0 2px var(--focus-ring);
+}
+.block-table-row-actions,
+.block-table-col-actions td {
+  border: none;
+}
+.block-table-row-actions button,
+.block-table-col-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.1s ease, color 0.1s ease, background-color 0.1s ease;
+}
+.block-table:hover .block-table-row-actions button,
+.block-table:hover .block-table-col-actions button {
+  opacity: 1;
+}
+.block-table-row-actions button:hover,
+.block-table-col-actions button:hover {
+  background: var(--bg-surface-hover);
+  color: var(--danger);
+}
+.block-table-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+.block-table-add-row button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.block-table-add-row button:hover {
+  color: var(--text-secondary);
+  background: var(--bg-surface-hover);
+}
+
+/* Sub-page block — `editor/nodes/SubPageBlockNode.tsx`. */
+.block-subpage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 4px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14.5px;
+  cursor: pointer;
+  text-align: left;
+}
+.block-subpage:hover {
+  background: var(--bg-surface-hover);
+}
+.block-subpage-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.block-subpage-title {
+  border-bottom: 1px solid var(--border-hairline);
+}
+
 /* Drag-to-reorder gutter. One handle per top-level block, absolutely
    positioned against `.page-blocks` from live DOM rects (this editor is one
    Lexical document, not a list of per-block components, so there's no block

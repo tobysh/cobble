@@ -11,8 +11,10 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import { INSERT_CHECK_LIST_COMMAND } from '@lexical/list'
 import { $setBlocksType } from '@lexical/selection'
-import { $createHeadingNode } from '@lexical/rich-text'
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text'
+import { $createCodeNode } from '@lexical/code'
 import {
+  $createParagraphNode,
   $getNodeByKey,
   $getRoot,
   $getSelection,
@@ -21,6 +23,7 @@ import {
   COMMAND_PRIORITY_LOW,
   KEY_ESCAPE_COMMAND,
   type EditorState,
+  type LexicalNode,
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
@@ -28,6 +31,10 @@ import { useWorkspace } from '../state/store'
 import type { Block, BlockId, BlockType, PageId } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
 import { editorStateToBlocks, populateEditorFromBlocks } from './serialization'
+import { $createImageBlockNode } from './nodes/ImageBlockNode'
+import { $createSubPageBlockNode } from './nodes/SubPageBlockNode'
+import { $createTableBlockNode } from './nodes/TableBlockNode'
+import { $createToggleContainerNode, $createToggleContentNode, $createToggleTitleNode } from './nodes/ToggleNode'
 import { SlashMenu } from './SlashMenu'
 import './editor.css'
 
@@ -43,6 +50,7 @@ function EditorBody({
 }) {
   const [editor] = useLexicalComposerContext()
   const saveBlocks = useWorkspace((s) => s.saveBlocks)
+  const createSubPage = useWorkspace((s) => s.createSubPage)
   const containerRef = useRef<HTMLDivElement>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -106,18 +114,25 @@ function EditorBody({
   }, [slashQuery])
 
   // Converts the current (slash-triggered) paragraph into the chosen block
-  // type via Lexical's own node/command APIs — `$setBlocksType` for heading
-  // (an in-place element swap), `INSERT_CHECK_LIST_COMMAND` /
-  // `INSERT_HORIZONTAL_RULE_COMMAND` for todo/divider (dispatched, since
-  // those commands do their own `editor.update()` internally and shouldn't
-  // be nested inside one of ours).
+  // type via Lexical's own node/command APIs — `$setBlocksType` for
+  // heading/quote/code (an in-place element swap, since those are all
+  // single-`ElementNode` types like paragraph itself),
+  // `INSERT_CHECK_LIST_COMMAND` / `INSERT_HORIZONTAL_RULE_COMMAND` for
+  // todo/divider (dispatched, since those commands do their own
+  // `editor.update()` internally and shouldn't be nested inside one of
+  // ours), and a manual `node.replace()` for toggle/image/table (compound
+  // or decorator nodes `$setBlocksType` can't produce). Sub-page is async
+  // (it creates a new page first) so it's handled after this update closes.
   const applyBlockType = useCallback(
     (type: BlockType) => {
+      let topLevelKey: NodeKey | null = null
+
       editor.update(() => {
         const selection = $getSelection()
         if (!$isRangeSelection(selection)) return
         const topLevel = selection.anchor.getNode().getTopLevelElementOrThrow()
         if (!$isParagraphNode(topLevel)) return
+        topLevelKey = topLevel.getKey()
 
         // Strip the leading "/query" text the user typed to trigger the menu.
         topLevel.select(0, topLevel.getChildrenSize())
@@ -129,6 +144,33 @@ function EditorBody({
           if ($isRangeSelection(afterClear)) {
             $setBlocksType(afterClear, () => $createHeadingNode('h1'))
           }
+        } else if (type === 'quote') {
+          const afterClear = $getSelection()
+          if ($isRangeSelection(afterClear)) {
+            $setBlocksType(afterClear, () => $createQuoteNode())
+          }
+        } else if (type === 'code') {
+          const afterClear = $getSelection()
+          if ($isRangeSelection(afterClear)) {
+            $setBlocksType(afterClear, () => $createCodeNode())
+          }
+        } else if (type === 'toggle') {
+          const current = $getNodeByKey(topLevelKey)
+          if (current) {
+            const container = $createToggleContainerNode(true)
+            const title = $createToggleTitleNode()
+            const content = $createToggleContentNode()
+            content.append($createParagraphNode())
+            container.append(title, content)
+            current.replace(container)
+            title.selectStart()
+          }
+        } else if (type === 'image') {
+          const current = $getNodeByKey(topLevelKey)
+          if (current) current.replace($createImageBlockNode())
+        } else if (type === 'table') {
+          const current = $getNodeByKey(topLevelKey)
+          if (current) current.replace($createTableBlockNode())
         }
       })
 
@@ -136,12 +178,20 @@ function EditorBody({
         editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined)
       } else if (type === 'divider') {
         editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined)
+      } else if (type === 'sub_page') {
+        void (async () => {
+          const newPageId = await createSubPage(pageId, 'Untitled')
+          editor.update(() => {
+            const current: LexicalNode | null = topLevelKey ? $getNodeByKey(topLevelKey) : null
+            if (current) current.replace($createSubPageBlockNode(newPageId))
+          })
+        })()
       }
 
       setSlashQuery(null)
       setDismissedQuery(null)
     },
-    [editor],
+    [editor, createSubPage, pageId],
   )
 
   // --- Drag-to-reorder ----------------------------------------------------

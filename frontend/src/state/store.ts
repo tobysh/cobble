@@ -44,6 +44,14 @@ interface WorkspaceState {
   updatePageTitle: (pageId: PageId, title: string) => void
 
   createPage: (parentId: PageId | null, title: string) => Promise<PageId>
+  /**
+   * Like `createPage`, but doesn't navigate into the new page — used by the
+   * sub-page block (`editor/nodes/SubPageBlockNode.tsx`) when inserting an
+   * inline reference, since navigating away mid-insert would unmount the
+   * editor that's still in the middle of placing the block that points at
+   * the page being created.
+   */
+  createSubPage: (parentId: PageId | null, title: string) => Promise<PageId>
   createDailyNote: (dateISO: string, label: string) => Promise<PageId>
   deletePage: (pageId: PageId) => Promise<void>
 }
@@ -140,6 +148,21 @@ export const useWorkspace = create<WorkspaceState>((set, get) => ({
       }
     })
     get().openPage(page.id)
+    return page.id
+  },
+
+  createSubPage: async (parentId, title) => {
+    const page = await api.createPage(title, parentId)
+    set((s) => {
+      const key = childKey(parentId)
+      const next = new Set(s.expandedTree)
+      if (parentId) next.add(parentId)
+      return {
+        pages: { ...s.pages, [page.id]: page },
+        children: { ...s.children, [key]: [...(s.children[key] ?? []), page.id] },
+        expandedTree: next,
+      }
+    })
     return page.id
   },
 
