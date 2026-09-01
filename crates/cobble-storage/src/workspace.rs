@@ -164,6 +164,61 @@ impl Workspace {
             .join(path.file_name().expect("page paths always have a file name"));
         fs::rename(&path, &dest).map_err(|source| StorageError::Io { path, source })
     }
+
+    fn list_trash_paths(&self) -> Result<Vec<PathBuf>, StorageError> {
+        let dir = self.trash_dir();
+        let entries = fs::read_dir(&dir).map_err(|source| StorageError::Io {
+            path: dir.clone(),
+            source,
+        })?;
+
+        let mut paths = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|source| StorageError::Io {
+                path: dir.clone(),
+                source,
+            })?;
+            let path = entry.path();
+            if path.to_string_lossy().ends_with(".cobble.json") {
+                paths.push(path);
+            }
+        }
+        paths.sort();
+        Ok(paths)
+    }
+
+    /// Pages currently sitting in `.cobble/trash/` — read directly from the
+    /// trashed files themselves, mirroring `list_pages`. Used by the trash
+    /// UI to show what can be restored.
+    pub fn list_trash(&self) -> Result<Vec<Page>, StorageError> {
+        self.list_trash_paths()?
+            .into_iter()
+            .map(|path| self.read_page(&path))
+            .collect()
+    }
+
+    /// Inverse of `trash_page`: moves a trashed page's file back into
+    /// `pages/`, preserving its filename. Returns the restored file's new
+    /// path (the caller — a Tauri command — reindexes it from there, same
+    /// as any other write path per "files are truth" in `CLAUDE.md`).
+    pub fn restore_page(&self, id: PageId) -> Result<PathBuf, StorageError> {
+        let suffix = format!("-{id}.cobble.json");
+        let path = self
+            .list_trash_paths()?
+            .into_iter()
+            .find(|p| {
+                p.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .ends_with(&suffix)
+            })
+            .ok_or(StorageError::PageNotFound(id))?;
+        let dest = self
+            .pages_dir()
+            .join(path.file_name().expect("trash paths always have a file name"));
+        fs::rename(&path, &dest).map_err(|source| StorageError::Io { path, source })?;
+        Ok(dest)
+    }
 }
 
 #[cfg(test)]
@@ -260,6 +315,49 @@ mod tests {
     fn trash_page_errors_for_an_unknown_id() {
         let (_dir, workspace) = open_temp_workspace();
         let err = workspace.trash_page(PageId::new()).unwrap_err();
+        assert!(matches!(err, StorageError::PageNotFound(_)));
+    }
+
+    #[test]
+    fn list_trash_returns_pages_currently_in_the_trash() {
+        let (_dir, workspace) = open_temp_workspace();
+        let kept = Page::new("Kept");
+        let doomed = Page::new("Doomed");
+        workspace.write_page(&kept).unwrap();
+        workspace.write_page(&doomed).unwrap();
+
+        workspace.trash_page(doomed.id).unwrap();
+
+        let trashed = workspace.list_trash().unwrap();
+        assert_eq!(trashed.len(), 1);
+        assert_eq!(trashed[0].id, doomed.id);
+        assert_eq!(trashed[0].title, "Doomed");
+    }
+
+    #[test]
+    fn restore_page_moves_it_back_into_the_pages_dir() {
+        let (dir, workspace) = open_temp_workspace();
+        let page = Page::new("Reprieved");
+        workspace.write_page(&page).unwrap();
+        workspace.trash_page(page.id).unwrap();
+        assert_eq!(workspace.find_page_path(page.id).unwrap(), None);
+
+        let restored_path = workspace.restore_page(page.id).unwrap();
+
+        assert_eq!(workspace.find_page_path(page.id).unwrap(), Some(restored_path));
+        assert!(workspace.list_trash().unwrap().is_empty());
+        let back = workspace.read_page_by_id(page.id).unwrap().unwrap();
+        assert_eq!(back, page);
+        let trashed_entries: Vec<_> = fs::read_dir(dir.path().join(".cobble").join("trash"))
+            .unwrap()
+            .collect();
+        assert!(trashed_entries.is_empty());
+    }
+
+    #[test]
+    fn restore_page_errors_for_an_unknown_id() {
+        let (_dir, workspace) = open_temp_workspace();
+        let err = workspace.restore_page(PageId::new()).unwrap_err();
         assert!(matches!(err, StorageError::PageNotFound(_)));
     }
 

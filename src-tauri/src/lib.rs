@@ -88,6 +88,10 @@ pub fn run() {
       commands::pages::list_children,
       commands::pages::move_page,
       commands::pages::delete_page,
+      commands::search::search_pages,
+      commands::search::get_backlinks,
+      commands::trash::list_trash,
+      commands::trash::restore_page,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
