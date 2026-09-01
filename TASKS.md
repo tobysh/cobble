@@ -19,10 +19,10 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 | Task | Status | Owner / branch | Notes |
 |---|---|---|---|
 | `cobble-core`: `Page`/`Block` domain types | done | main (solo session) | `Page`/`Block`/`PropertyValue`/ULID-based `PageId`/`BlockId`; `database_schema` left as opaque JSON pending M3; round-trip tests pass |
-| `cobble-storage`: file format read/write, atomic writes, ULID IDs | claimed | agent/cobble-storage | |
-| `cobble-index`: SQLite schema + `rebuild_all()` | todo | | |
-| `cobble-watcher`: FS watch → incremental reindex | todo | | |
-| Tauri commands: `create_page`, `get_page`, `update_page_blocks`, `list_children`, `move_page`, `delete_page` | todo | | |
+| `cobble-storage`: file format read/write, atomic writes, ULID IDs | **CONFLICT** — see note | agent/cobble-storage (done, pushed) *and* `agent/task1` (in-progress, uncommitted) | Two agents independently built this — `agents.md` assigned it separately from this claim. `agent/cobble-storage` is finished and pushed: `Workspace::open/write_page/read_page/read_page_by_id/find_page_path/list_pages/trash_page`, 17 tests passing (`git fetch && git log origin/agent/cobble-storage`). **Needs a human/orchestrator call on which implementation to keep before anyone builds on top of either.** |
+| `cobble-index`: SQLite schema + `rebuild_all()` | in-progress (unpushed) | `agent/task0` | local-only as of last check — push the branch so this row reflects reality |
+| `cobble-watcher`: FS watch → incremental reindex | claimed (unpushed at claim time) | `agent/cobble-watcher` | branch existed locally but hadn't reached `origin` yet — push it |
+| Tauri commands: `create_page`, `get_page`, `update_page_blocks`, `list_children`, `move_page`, `delete_page` | claimed | agent/cobble-tauri-commands | |
 | Frontend: sidebar page tree | todo | | |
 | Frontend: Lexical editor shell, minimal node set (paragraph/heading/todo/divider) | todo | | |
 
@@ -73,7 +73,8 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 
 ## How to claim a task
 
-1. Check this file is current (`git pull` / re-read after a merge).
+1. `git fetch origin && git log origin/main -1 -- TASKS.md` (or just re-read this file after pulling `main`) — a claim that only exists in your local worktree doesn't count; someone else can't see it.
 2. Edit your row: set `Status` to `claimed`, fill `Owner / branch` with your worktree's branch name (see `CLAUDE.md`), commit just that change with a message like `tasks: claim cobble-storage file format`.
-3. Push/merge that claim *before* starting real work, so two agents don't claim the same row.
-4. Update to `in-progress` → `done` as you go; `blocked` with a one-line reason if you get stuck on something another agent owns.
+3. **`git push` your branch to `origin`, then merge that one-line claim commit into `main` and `git push origin main` immediately** — a claim sitting only in a local commit (even a pushed *branch*, if it's not also merged to `main`) is invisible to another agent reading `main`'s `TASKS.md`, which is exactly how the M1 `cobble-storage` double-build happened (2026-09-01: `agent/cobble-storage` and `agent/task1` both built it — see that row's note). Do the merge-to-`main` step *before* starting real work, not after.
+4. Update to `in-progress` → `done` as you go, pushing + merging the status line each time — not just at the end. `blocked` with a one-line reason if you get stuck on something another agent owns.
+5. If you're not sure whether a task is already spoken for (e.g. someone told you your assignment out-of-band, not through this file), `git fetch` and check here first — `TASKS.md` on `main` is the single source of truth for claims. If another coordination doc (e.g. `agents.md`) disagrees with this file, this file wins; reconcile the other doc or flag the mismatch rather than trusting it silently.
