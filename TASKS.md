@@ -12,7 +12,7 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 | Vite + React + TS frontend scaffold | done | — | `frontend/` |
 | Tauri shell wired to frontend (dev/build commands, ports) | done | — | root `package.json` + `pnpm-workspace.yaml` hold the Tauri CLI; `frontend/` has its own `package.json` for the app itself |
 | Linux system deps for Tauri (webkit2gtk, etc.) | done | — | installed via apt in this dev environment; a fresh machine will need the same (see README) |
-| Full `pnpm exec tauri build --debug` verified end-to-end | in-progress | — | fixed a Vite/esbuild target bug (`safari13` tripped a destructuring-transform bug on this Vite 8/esbuild combo — removed the pinned `build.target`); last full-build run's result wasn't confirmed — **re-run and confirm before starting M1** |
+| Full `pnpm exec tauri build --debug` verified end-to-end | done | — | fixed a Vite/esbuild target bug (`safari13` tripped a destructuring-transform bug on this Vite 8/esbuild combo — removed the pinned `build.target`); deb/rpm/AppImage bundles all built successfully |
 
 ## M1 — Page tree + basic editor + storage
 
