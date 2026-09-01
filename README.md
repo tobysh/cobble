@@ -2,7 +2,7 @@
 
 A Notion-style workspace app: Rust backend, Tauri desktop shell, React/TypeScript frontend. Off-black/off-white "Night" theme plus Notion-mirrored Light/Dark themes, a global calendar, relational databases, and a sandboxed WASM plugin API.
 
-> **This is a vibecoded project.** It's built almost entirely with AI coding assistance because I can't code that well myself. Expect rough edges, and don't assume any part of it has had a careful human review.
+> **This is a vibecoded project.** It's built almost entirely with AI coding assistance. Expect rough edges, and don't assume any part of it has had a careful human review.
 
 ## Status
 
