@@ -106,4 +106,18 @@ export const api = {
   async deletePage(id: PageId): Promise<void> {
     await invoke<void>('delete_page', { id })
   },
+
+  /**
+   * Backed by `src-tauri/src/commands/plugins.rs::check_custom_ui_permission`
+   * — re-parses `manifestToml` host-side and checks it against
+   * `cobble_plugin_host::permissions::Permission::CustomUi`. This is the
+   * authoritative half of the `custom_ui` iframe escape hatch's
+   * deny-by-default gate (see `plugin-runtime/CustomUiFrame.tsx`): a plugin
+   * whose manifest doesn't grant `custom_ui` gets `false` back no matter
+   * what any client-side state says, and a malformed manifest rejects the
+   * request outright rather than silently resolving either way.
+   */
+  async checkCustomUiPermission(manifestToml: string): Promise<boolean> {
+    return invoke<boolean>('check_custom_ui_permission', { manifestToml })
+  },
 }

@@ -88,6 +88,7 @@ pub fn run() {
       commands::pages::list_children,
       commands::pages::move_page,
       commands::pages::delete_page,
+      commands::plugins::check_custom_ui_permission,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
