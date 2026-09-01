@@ -1,0 +1,16 @@
+{
+  "name": "cobble",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A Notion-style workspace app",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  },
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@10.32.1",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

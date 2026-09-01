@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "UNLICENSED"
+
+[profile.dev]
+# Keep incremental builds fast; the plugin-host crate (wasmtime) benefits most from this.
+incremental = true
+
+[profile.release]
+lto = true
+codegen-units = 1
