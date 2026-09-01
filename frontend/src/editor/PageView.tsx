@@ -24,6 +24,7 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { CalendarDbView } from '../database/CalendarDbView'
 import { TableView } from '../database/TableView'
 import { useWorkspace } from '../state/store'
 import type { Block, BlockId, BlockType, PageId } from '../state/types'
@@ -353,10 +354,18 @@ function EditorBody({
   )
 }
 
+// Database views a page can switch between. Kept as a small standalone type
+// (rather than reusing `ViewKind` from `state/types.ts`, which also covers
+// unbuilt board/list/gallery kinds) so this switcher only lists what's
+// actually implemented today — extend it additively as sibling M3 tasks land
+// their own view components.
+type DatabaseViewMode = 'table' | 'calendar'
+
 export function PageView({ pageId }: { pageId: PageId }) {
   const page = useWorkspace((s) => s.pages[pageId])
   const updatePageTitle = useWorkspace((s) => s.updatePageTitle)
   const idMapRef = useRef<Map<NodeKey, BlockId>>(new Map())
+  const [dbViewMode, setDbViewMode] = useState<DatabaseViewMode>('table')
 
   const initialBlocks = useMemo<Block[]>(() => page?.blocks ?? [], [page])
 
@@ -395,15 +404,38 @@ export function PageView({ pageId }: { pageId: PageId }) {
     </div>
   )
 
-  // A database page (`kind: 'database'`) renders its schema as a table
-  // instead of the block editor — see `frontend/src/database/TableView.tsx`.
-  // Board/list/gallery/calendar views are later M3 tasks that will branch on
-  // the page's *view* selection here too; table is the only one today.
+  // A database page (`kind: 'database'`) renders its schema as one of
+  // several interchangeable views instead of the block editor — see
+  // `frontend/src/database/{TableView,CalendarDbView}.tsx`. Board/list/
+  // gallery are sibling M3 tasks landing their own view components; this
+  // switcher is deliberately a plain tab strip over local state (not a
+  // bigger refactor) so those can each add one more button/branch here
+  // without conflicting.
   if (page.kind === 'database') {
     return (
       <div className="page-view page-view--database">
         {header}
-        <TableView databaseId={pageId} schema={page.databaseSchema} />
+        <div className="db-view-switcher">
+          <button
+            type="button"
+            className={dbViewMode === 'table' ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+            onClick={() => setDbViewMode('table')}
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            className={dbViewMode === 'calendar' ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+            onClick={() => setDbViewMode('calendar')}
+          >
+            Calendar
+          </button>
+        </div>
+        {dbViewMode === 'calendar' ? (
+          <CalendarDbView databaseId={pageId} schema={page.databaseSchema} />
+        ) : (
+          <TableView databaseId={pageId} schema={page.databaseSchema} />
+        )}
       </div>
     )
   }

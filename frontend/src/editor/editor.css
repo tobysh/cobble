@@ -13,6 +13,36 @@
   max-width: none;
 }
 
+/* Minimal tab strip for switching a database page between views (table,
+   calendar, and whichever of board/list/gallery land alongside this) — see
+   the `dbViewMode` switch in `PageView`. */
+.db-view-switcher {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+.db-view-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.db-view-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+}
+.db-view-tab--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
 .page-header {
   display: flex;
   align-items: center;

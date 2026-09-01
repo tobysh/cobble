@@ -1,0 +1,78 @@
+/* Database calendar view. Reuses `calendar/calendar.css`'s `.calendar-grid`
+   / `.calendar-cell` layout wholesale (see `CalendarGrid`); everything here
+   is a scoped override under `.calendar-db-view` so the global calendar's
+   own styling is untouched. Theme tokens only — see "Theme tokens only" in
+   CLAUDE.md. */
+
+/* `.page-view--database` (editor.css) already supplies the page's own
+   outer padding — this view only adds the small amount table view's
+   `.db-table-view` also adds on top of that, not a second full inset. */
+.calendar-db-view {
+  padding: 0 4px;
+}
+
+.calendar-db-view .calendar-header {
+  margin-bottom: 18px;
+}
+
+.calendar-db-prop-select {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  margin-right: 6px;
+  cursor: pointer;
+}
+
+.calendar-db-view .calendar-grid {
+  gap: 4px;
+}
+
+/* Rows have no fixed count per day, so unlike the global calendar's square
+   day-of-month cells, these grow to a fixed min-height and stack entries
+   top to bottom instead of centering a single dot/plus marker. */
+.calendar-db-view .calendar-cell,
+.calendar-db-view .calendar-cell--empty {
+  aspect-ratio: unset;
+  min-height: 96px;
+}
+.calendar-db-view .calendar-cell {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 6px;
+  gap: 3px;
+  cursor: default;
+  overflow-y: auto;
+}
+.calendar-db-view .calendar-cell:hover {
+  transform: none;
+}
+.calendar-db-view .calendar-date {
+  align-self: flex-end;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.calendar-db-entry {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  padding: 3px 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.calendar-db-entry:hover {
+  background: var(--bg-surface-hover);
+}
