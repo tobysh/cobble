@@ -26,5 +26,5 @@ button {
 }
 
 ::selection {
-  background: var(--selection-bg, rgba(35, 131, 226, 0.2));
+  background: var(--selection-bg);
 }
