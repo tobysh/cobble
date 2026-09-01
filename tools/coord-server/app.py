@@ -8,15 +8,19 @@ server is the single live copy every agent talks to over HTTP instead.
 Run with: uvicorn app:app --host 0.0.0.0 --port 8420
 """
 
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 import db
 
 app = FastAPI(title="cobble coordination server")
+
+BOARD_HTML_PATH = os.path.join(os.path.dirname(__file__), "board.html")
 
 
 def now() -> str:
@@ -26,6 +30,15 @@ def now() -> str:
 @app.on_event("startup")
 def on_startup():
     db.init_db()
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/board", response_class=HTMLResponse)
+def board():
+    """Human-readable live task board — what TASKS.md used to be, but always current.
+    Same-origin polls of GET /tasks and GET /agents below; read-only, doesn't mutate state."""
+    with open(BOARD_HTML_PATH, "r") as f:
+        return f.read()
 
 
 # ---- agents -----------------------------------------------------------------

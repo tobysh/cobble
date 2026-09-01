@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cobble — Task Board</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --panel: #171717;
+    --panel-border: #2a2a2a;
+    --text: #ededed;
+    --text-dim: #8f8f8f;
+    --text-faint: #616161;
+    --accent: #7dd3fc;
+
+    --c-todo: #616161;
+    --c-todo-bg: #1c1c1c;
+    --c-claimed: #a78bfa;
+    --c-claimed-bg: #211c33;
+    --c-progress: #fbbf24;
+    --c-progress-bg: #33280f;
+    --c-blocked: #f87171;
+    --c-blocked-bg: #341616;
+    --c-done: #4ade80;
+    --c-done-bg: #14261a;
+
+    --agent-idle: #616161;
+    --agent-working: #4ade80;
+    --agent-blocked: #f87171;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    font-size: 14px;
+  }
+
+  #top-bar {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 5;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 20px 28px 14px;
+  }
+
+  header h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  header .sub {
+    color: var(--text-dim);
+    font-size: 12.5px;
+    margin-top: 4px;
+  }
+
+  #summary {
+    padding: 12px 28px;
+    border-top: 1px solid var(--panel-border);
+    border-bottom: 1px solid var(--panel-border);
+    display: flex;
+    gap: 22px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  #summary b { color: var(--text); font-weight: 600; }
+
+  #status {
+    font-size: 12px;
+    color: var(--text-faint);
+    text-align: right;
+    line-height: 1.5;
+  }
+
+  #status .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--agent-working);
+    margin-right: 5px;
+  }
+  #status.stale .dot { background: var(--c-blocked); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 0;
+    align-items: start;
+  }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  #tasks-col { padding: 8px 28px 60px; min-width: 0; }
+  #agents-col {
+    padding: 8px 24px 60px;
+    border-left: 1px solid var(--panel-border);
+    position: sticky;
+    /* top/max-height set at runtime from #top-bar's actual rendered height */
+    align-self: start;
+    overflow-y: auto;
+  }
+
+  .section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    margin: 22px 0 4px;
+    font-weight: 700;
+  }
+  .section-title:first-of-type { margin-top: 14px; }
+
+  h2.milestone {
+    font-size: 13.5px;
+    color: var(--text);
+    margin: 24px 0 8px;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  h2.milestone:first-of-type { margin-top: 6px; }
+
+  .milestone-progress {
+    font-weight: 400;
+    color: var(--text-faint);
+    font-size: 12px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    color: var(--text-faint);
+    padding: 0 10px 6px;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  thead th:first-child { padding-left: 0; }
+
+  .task-row {
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .task-row:last-child { border-bottom: none; }
+
+  .task-row td {
+    padding: 9px 10px;
+    vertical-align: top;
+  }
+  .task-row td:first-child { padding-left: 0; }
+
+  .task-desc {
+    line-height: 1.45;
+  }
+  .task-desc code {
+    background: #232323;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .badge-todo { color: var(--c-todo); background: var(--c-todo-bg); }
+  .badge-claimed { color: var(--c-claimed); background: var(--c-claimed-bg); }
+  .badge-in-progress { color: var(--c-progress); background: var(--c-progress-bg); }
+  .badge-blocked { color: var(--c-blocked); background: var(--c-blocked-bg); }
+  .badge-done { color: var(--c-done); background: var(--c-done-bg); }
+
+  .owner-cell {
+    color: var(--text-dim);
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .owner-cell .branch {
+    color: var(--text-faint);
+    font-size: 11.5px;
+    display: block;
+    margin-top: 1px;
+  }
+
+  .notes-cell {
+    color: var(--text-dim);
+    font-size: 12.5px;
+    max-width: 360px;
+    line-height: 1.4;
+  }
+
+  .agent-card {
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 11px 13px;
+    margin-bottom: 10px;
+  }
+  .agent-card .agent-id {
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .agent-card .agent-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .agent-status-idle { background: var(--agent-idle); }
+  .agent-status-working, .agent-status-in-progress { background: var(--agent-working); }
+  .agent-status-blocked { background: var(--agent-blocked); }
+
+  .agent-card .agent-task {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+  .agent-card .agent-branch {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top: 5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .agent-card .agent-note {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+  .agent-card .agent-updated {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 7px;
+  }
+
+  .empty {
+    color: var(--text-faint);
+    font-size: 12.5px;
+    padding: 10px 0;
+  }
+
+  .agents-header {
+    margin-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div id="top-bar">
+  <header>
+    <div>
+      <h1>Cobble Task Board</h1>
+      <div class="sub">Live view of <code>localhost:8420</code> — read-only, do not hand-edit TASKS.md</div>
+    </div>
+    <div id="status"><span class="dot"></span>connecting…</div>
+  </header>
+  <div id="summary"></div>
+</div>
+
+<main>
+  <div id="tasks-col">
+    <div class="section-title">Tasks</div>
+    <div id="tasks"></div>
+  </div>
+  <div id="agents-col">
+    <div class="section-title agents-header">Agents</div>
+    <div id="agents"></div>
+  </div>
+</main>
+
+<script>
+const STATUS_LABEL = {
+  "todo": "Todo",
+  "claimed": "Claimed",
+  "in-progress": "In progress",
+  "blocked": "Blocked",
+  "done": "Done",
+};
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+// Turns `text with \`code\` spans` into escaped HTML with <code> for backticked bits.
+function renderInline(s) {
+  if (!s) return "";
+  const parts = String(s).split(/(`[^`]+`)/g);
+  return parts.map((p) => {
+    if (p.startsWith("`") && p.endsWith("`") && p.length > 1) {
+      return `<code>${escapeHtml(p.slice(1, -1))}</code>`;
+    }
+    return escapeHtml(p);
+  }).join("");
+}
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const then = new Date(iso.replace(/(\.\d{3})\d*Z$/, "$1Z"));
+  const s = Math.max(0, Math.floor((Date.now() - then.getTime()) / 1000));
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function badge(status) {
+  const cls = "badge-" + (status || "todo");
+  const label = STATUS_LABEL[status] || status || "todo";
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function renderTasks(tasks) {
+  const el = document.getElementById("tasks");
+  if (!tasks.length) {
+    el.innerHTML = '<div class="empty">No tasks yet.</div>';
+    return;
+  }
+
+  const byMilestone = new Map();
+  for (const t of tasks) {
+    if (!byMilestone.has(t.milestone)) byMilestone.set(t.milestone, []);
+    byMilestone.get(t.milestone).push(t);
+  }
+
+  let html = "";
+  for (const [milestone, rows] of byMilestone) {
+    const done = rows.filter((t) => t.status === "done").length;
+    html += `<h2 class="milestone">${escapeHtml(milestone)}<span class="milestone-progress">${done}/${rows.length} done</span></h2>`;
+    html += `
+      <table>
+        <thead>
+          <tr>
+            <th style="width:96px">Status</th>
+            <th>Task</th>
+            <th style="width:190px">Owner</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    for (const t of rows) {
+      const ownerLine = t.owner
+        ? `${escapeHtml(t.owner)}${t.branch ? `<span class="branch">${escapeHtml(t.branch)}</span>` : ""}`
+        : "—";
+      html += `
+        <tr class="task-row">
+          <td style="width:96px">${badge(t.status)}</td>
+          <td class="task-desc">${renderInline(t.description)}</td>
+          <td class="owner-cell" style="width:190px">${ownerLine}</td>
+          <td class="notes-cell">${t.notes ? renderInline(t.notes) : ""}</td>
+        </tr>`;
+    }
+    html += "</tbody></table>";
+  }
+  el.innerHTML = html;
+}
+
+function renderAgents(agents) {
+  const el = document.getElementById("agents");
+  if (!agents.length) {
+    el.innerHTML = '<div class="empty">No agents registered.</div>';
+    return;
+  }
+  let html = "";
+  for (const a of agents.slice().sort((x, y) => x.id.localeCompare(y.id))) {
+    const dotClass = "agent-status-" + (a.status || "idle");
+    html += `
+      <div class="agent-card">
+        <div class="agent-id"><span class="agent-dot ${dotClass}"></span>${escapeHtml(a.id)}</div>
+        ${a.current_task ? `<div class="agent-task">${renderInline(a.current_task)}</div>` : `<div class="agent-task">idle</div>`}
+        ${a.branch ? `<div class="agent-branch">${escapeHtml(a.branch)}</div>` : ""}
+        ${a.note ? `<div class="agent-note">${renderInline(a.note)}</div>` : ""}
+        <div class="agent-updated">updated ${timeAgo(a.updated_at)}</div>
+      </div>`;
+  }
+  el.innerHTML = html;
+}
+
+function renderSummary(tasks, agents) {
+  const el = document.getElementById("summary");
+  const counts = { todo: 0, claimed: 0, "in-progress": 0, blocked: 0, done: 0 };
+  for (const t of tasks) counts[t.status] = (counts[t.status] || 0) + 1;
+  const active = agents.filter((a) => a.status && a.status !== "idle").length;
+  el.innerHTML = `
+    <span><b>${tasks.length}</b> tasks</span>
+    <span><b>${counts.done}</b> done</span>
+    <span><b>${counts["in-progress"] + counts.claimed}</b> in flight</span>
+    <span><b>${counts.todo}</b> todo</span>
+    ${counts.blocked ? `<span><b>${counts.blocked}</b> blocked</span>` : ""}
+    <span><b>${active}</b>/${agents.length} agents active</span>
+  `;
+}
+
+async function refresh() {
+  const statusEl = document.getElementById("status");
+  try {
+    const [tasksRes, agentsRes] = await Promise.all([
+      fetch("/tasks", { cache: "no-store" }),
+      fetch("/agents", { cache: "no-store" }),
+    ]);
+    if (!tasksRes.ok || !agentsRes.ok) throw new Error("bad response");
+    const tasks = await tasksRes.json();
+    const agents = await agentsRes.json();
+    renderSummary(tasks, agents);
+    renderTasks(tasks);
+    renderAgents(agents);
+    statusEl.classList.remove("stale");
+    statusEl.innerHTML = `<span class="dot"></span>live — updated ${new Date().toLocaleTimeString()}`;
+  } catch (e) {
+    statusEl.classList.add("stale");
+    statusEl.innerHTML = `<span class="dot"></span>connection lost, retrying…`;
+  }
+}
+
+function syncAgentsColOffset() {
+  const topBar = document.getElementById("top-bar");
+  const agentsCol = document.getElementById("agents-col");
+  const h = topBar.offsetHeight;
+  agentsCol.style.top = h + "px";
+  agentsCol.style.maxHeight = `calc(100vh - ${h}px)`;
+}
+
+window.addEventListener("resize", syncAgentsColOffset);
+new ResizeObserver(syncAgentsColOffset).observe(document.getElementById("top-bar"));
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+
+</body>
+</html>
