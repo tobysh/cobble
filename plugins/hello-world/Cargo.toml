@@ -1,0 +1,30 @@
+[package]
+name = "hello-world-plugin"
+version = "0.1.0"
+edition = "2021"
+
+# NOTE: this crate is intentionally NOT a member of the root workspace
+# (../../Cargo.toml). It's a Component Model *guest* — built for
+# wasm32-wasip2 via `cargo-component`, not compiled as a normal host-target
+# crate — so it doesn't participate in `cargo check --workspace` and needs
+# its own toolchain (see docs/PLUGINS.md "Writing a plugin today"):
+#
+#   rustup target add wasm32-wasip2
+#   cargo install cargo-component
+#   cargo component build --release
+#
+# Neither of those is a Cobble dependency; they're installed by plugin
+# authors separately from this repo.
+
+[dependencies]
+wit-bindgen = "0.36"
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "cobble:plugin"
+
+[package.metadata.component.target]
+path = "wit"
+world = "plugin"
