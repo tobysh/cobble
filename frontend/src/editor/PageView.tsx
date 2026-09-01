@@ -24,9 +24,10 @@ import {
   type NodeKey,
 } from 'lexical'
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { GalleryView } from '../database/GalleryView'
 import { TableView } from '../database/TableView'
 import { useWorkspace } from '../state/store'
-import type { Block, BlockId, BlockType, PageId } from '../state/types'
+import type { Block, BlockId, BlockType, DatabaseSchema, PageId, ViewKind } from '../state/types'
 import { editorTheme, EDITOR_NODES } from './nodes'
 import { editorStateToBlocks, populateEditorFromBlocks } from './serialization'
 import { SlashMenu } from './SlashMenu'
@@ -395,15 +396,16 @@ export function PageView({ pageId }: { pageId: PageId }) {
     </div>
   )
 
-  // A database page (`kind: 'database'`) renders its schema as a table
-  // instead of the block editor — see `frontend/src/database/TableView.tsx`.
-  // Board/list/gallery/calendar views are later M3 tasks that will branch on
-  // the page's *view* selection here too; table is the only one today.
+  // A database page (`kind: 'database'`) renders its schema as one of
+  // several views instead of the block editor — see `frontend/src/database/`.
+  // This switcher is deliberately minimal (a tab per `ViewKind` this repo
+  // currently has a component for): board/list/calendar are separate M3
+  // tasks landing around the same time and will each add their own tab here.
   if (page.kind === 'database') {
     return (
       <div className="page-view page-view--database">
         {header}
-        <TableView databaseId={pageId} schema={page.databaseSchema} />
+        <DatabaseViewSwitcher pageId={pageId} schema={page.databaseSchema} />
       </div>
     )
   }
@@ -415,6 +417,48 @@ export function PageView({ pageId }: { pageId: PageId }) {
       <LexicalComposer initialConfig={initialConfig}>
         <EditorBody pageId={pageId} idMap={idMapRef.current} />
       </LexicalComposer>
+    </div>
+  )
+}
+
+/** Tabs available today. Extend this array (and the switch below) to add a view. */
+const AVAILABLE_VIEWS: { kind: ViewKind; label: string }[] = [
+  { kind: 'table', label: 'Table' },
+  { kind: 'gallery', label: 'Gallery' },
+]
+
+/**
+ * Picks which view renders a database's rows. Local, resets per page (like
+ * `PageView` itself, remounted by `key={pageId}` in App.tsx) rather than
+ * persisted — `DatabaseSchema.views` exists on disk for saved views, but
+ * wiring this switcher to it is follow-up work, not part of any one view's
+ * task.
+ */
+function DatabaseViewSwitcher({ pageId, schema }: { pageId: PageId; schema: DatabaseSchema | undefined }) {
+  const [activeView, setActiveView] = useState<ViewKind>('table')
+
+  return (
+    <div className="db-view-switcher-wrap">
+      <div className="db-view-switcher" role="tablist">
+        {AVAILABLE_VIEWS.map(({ kind, label }) => (
+          <button
+            key={kind}
+            type="button"
+            role="tab"
+            aria-selected={activeView === kind}
+            className={activeView === kind ? 'db-view-tab db-view-tab--active' : 'db-view-tab'}
+            onClick={() => setActiveView(kind)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {activeView === 'gallery' ? (
+        <GalleryView databaseId={pageId} schema={schema} />
+      ) : (
+        <TableView databaseId={pageId} schema={schema} />
+      )}
     </div>
   )
 }
