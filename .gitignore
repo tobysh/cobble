@@ -2,7 +2,7 @@
 /target/
 **/target/
 Cargo.lock.bak
-
+/.claude/
 # --- Node / pnpm ---
 node_modules/
 **/node_modules/

@@ -8,6 +8,12 @@ A Notion-style workspace app: Rust backend, Tauri desktop shell, React/TypeScrip
 
 Early / actively in progress. See `TASKS.md` for a snapshot of what's done and in flight, and `docs/ARCHITECTURE.md` for the full design doc (storage format, data model, plugin system, theming, milestones).
 
+## Documentation
+
+- `docs/ARCHITECTURE.md` — the design doc: storage format, data model, plugin system, theming, milestones.
+- `docs/DEVELOPMENT.md` — how to read, run, test, and extend this repo, written for a reader with beginner Rust knowledge and no prior Tauri experience.
+- `docs/PLUGINS.md` — the plugin system in depth: manifest format, permission model, WIT interface, sandbox limits, and a walkthrough for writing a plugin today.
+
 ## Setup
 
 ```sh
