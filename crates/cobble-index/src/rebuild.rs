@@ -103,10 +103,12 @@ fn insert_page(conn: &Connection, page: &Page, path: &Path, hash: &str) -> Resul
         ],
     )?;
 
-    if let Some(schema_json) = &page.database_schema {
+    if let Some(schema) = &page.database_schema {
+        let schema_json = serde_json::to_string(schema)
+            .expect("DatabaseSchema serialization is infallible (no maps/non-string keys)");
         conn.execute(
             "INSERT INTO database_schemas (page_id, schema_json) VALUES (?1, ?2)",
-            params![id, schema_json.to_string()],
+            params![id, schema_json],
         )?;
     }
 

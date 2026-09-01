@@ -47,7 +47,15 @@ impl Workspace {
     /// since the last write), the new file is written first and only then
     /// does the stale file get removed — there's never a window where the
     /// page exists under neither name.
+    ///
+    /// If `page` has a parent that is itself a `kind: Database` page with a
+    /// schema, `page.properties` is validated against that schema first (see
+    /// `cobble_core::database_schema`'s module docs: "`cobble-storage` calls
+    /// the validation functions at the file-write boundary"). Nothing is
+    /// written to disk when validation fails.
     pub fn write_page(&self, page: &Page) -> Result<PathBuf, StorageError> {
+        self.validate_against_parent_schema(page)?;
+
         let target = self
             .pages_dir()
             .join(file_format::page_file_name(&page.title, page.id));
@@ -64,6 +72,29 @@ impl Workspace {
             }
         }
         Ok(target)
+    }
+
+    /// Looks up `page`'s parent on disk and, if it's a database with a
+    /// schema, validates `page.properties` against it. A row page whose
+    /// parent isn't found (not yet written, already trashed, or simply a
+    /// plain `kind: Page`/has no schema) is written unvalidated — schema
+    /// enforcement only applies once a page is actually a database row.
+    fn validate_against_parent_schema(&self, page: &Page) -> Result<(), StorageError> {
+        let Some(parent_id) = page.parent_id else {
+            return Ok(());
+        };
+        let Some(parent) = self.read_page_by_id(parent_id)? else {
+            return Ok(());
+        };
+        let Some(schema) = &parent.database_schema else {
+            return Ok(());
+        };
+        schema
+            .validate_row(&page.properties)
+            .map_err(|source| StorageError::SchemaValidation {
+                page: page.id,
+                source,
+            })
     }
 
     pub fn read_page(&self, path: &Path) -> Result<Page, StorageError> {
@@ -230,5 +261,112 @@ mod tests {
         let (_dir, workspace) = open_temp_workspace();
         let err = workspace.trash_page(PageId::new()).unwrap_err();
         assert!(matches!(err, StorageError::PageNotFound(_)));
+    }
+
+    fn tasks_database() -> Page {
+        use cobble_core::{DatabaseSchema, PropertyDefinition, PropertyType, SelectOption, TagColor};
+
+        let mut db = Page::new("Tasks");
+        db.kind = cobble_core::PageKind::Database;
+        db.database_schema = Some(DatabaseSchema::new(vec![
+            PropertyDefinition::new("Name", PropertyType::Text),
+            PropertyDefinition::new("Count", PropertyType::Number),
+            PropertyDefinition::new(
+                "Status",
+                PropertyType::Select {
+                    options: vec![
+                        SelectOption::new("Todo", TagColor::Gray),
+                        SelectOption::new("Done", TagColor::Green),
+                    ],
+                },
+            ),
+        ]));
+        db
+    }
+
+    #[test]
+    fn a_database_schema_round_trips_through_the_workspace() {
+        let (_dir, workspace) = open_temp_workspace();
+        let db = tasks_database();
+
+        workspace.write_page(&db).unwrap();
+        let back = workspace.read_page_by_id(db.id).unwrap().unwrap();
+
+        assert_eq!(back.database_schema, db.database_schema);
+    }
+
+    #[test]
+    fn a_row_page_with_typed_values_round_trips_through_the_workspace() {
+        let (_dir, workspace) = open_temp_workspace();
+        let db = tasks_database();
+        workspace.write_page(&db).unwrap();
+
+        let mut row = Page::new("Ship it");
+        row.parent_id = Some(db.id);
+        row.properties
+            .insert("Name".into(), PropertyValue::Text("Ship it".into()));
+        row.properties
+            .insert("Count".into(), PropertyValue::Number(3.0));
+        row.properties
+            .insert("Status".into(), PropertyValue::Select("Todo".into()));
+        workspace.write_page(&row).unwrap();
+
+        let back = workspace.read_page_by_id(row.id).unwrap().unwrap();
+        assert_eq!(back, row);
+    }
+
+    #[test]
+    fn writing_a_row_with_a_type_mismatched_value_is_rejected() {
+        let (_dir, workspace) = open_temp_workspace();
+        let db = tasks_database();
+        workspace.write_page(&db).unwrap();
+
+        let mut row = Page::new("Bad row");
+        row.parent_id = Some(db.id);
+        row.properties
+            .insert("Count".into(), PropertyValue::Text("not a number".into()));
+
+        let err = workspace.write_page(&row).unwrap_err();
+        assert!(matches!(err, StorageError::SchemaValidation { page, .. } if page == row.id));
+        assert_eq!(workspace.read_page_by_id(row.id).unwrap(), None);
+    }
+
+    #[test]
+    fn writing_a_row_with_an_unknown_select_option_is_rejected() {
+        let (_dir, workspace) = open_temp_workspace();
+        let db = tasks_database();
+        workspace.write_page(&db).unwrap();
+
+        let mut row = Page::new("Bad row");
+        row.parent_id = Some(db.id);
+        row.properties
+            .insert("Status".into(), PropertyValue::Select("Cancelled".into()));
+
+        let err = workspace.write_page(&row).unwrap_err();
+        assert!(matches!(err, StorageError::SchemaValidation { page, .. } if page == row.id));
+    }
+
+    #[test]
+    fn a_row_page_under_a_plain_page_parent_is_written_unvalidated() {
+        let (_dir, workspace) = open_temp_workspace();
+        let parent = Page::new("Not a database");
+        workspace.write_page(&parent).unwrap();
+
+        let mut child = Page::new("Child");
+        child.parent_id = Some(parent.id);
+        child
+            .properties
+            .insert("anything".into(), PropertyValue::Text("goes".into()));
+
+        assert!(workspace.write_page(&child).is_ok());
+    }
+
+    #[test]
+    fn a_page_whose_parent_does_not_exist_on_disk_yet_is_written_unvalidated() {
+        let (_dir, workspace) = open_temp_workspace();
+        let mut child = Page::new("Orphan");
+        child.parent_id = Some(PageId::new());
+
+        assert!(workspace.write_page(&child).is_ok());
     }
 }

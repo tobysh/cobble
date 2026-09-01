@@ -273,11 +273,13 @@ mod tests {
     }
 
     #[test]
-    fn database_page_preserves_schema_json() {
+    fn database_page_preserves_typed_schema_json() {
+        use cobble_core::DatabaseSchema;
+
         let dir = tempfile::tempdir().unwrap();
         let mut db = Page::new("Tasks");
         db.kind = PageKind::Database;
-        db.database_schema = Some(serde_json::json!({ "properties": {}, "views": [] }));
+        db.database_schema = Some(DatabaseSchema::default());
         write_page(dir.path(), &db);
 
         let mut index = Index::open_in_memory().unwrap();
@@ -292,7 +294,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(
-            serde_json::from_str::<serde_json::Value>(&schema_json).unwrap(),
+            serde_json::from_str::<DatabaseSchema>(&schema_json).unwrap(),
             db.database_schema.unwrap()
         );
     }
