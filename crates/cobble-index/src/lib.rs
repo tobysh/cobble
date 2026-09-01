@@ -14,8 +14,8 @@ use cobble_core::PageId;
 use rusqlite::Connection;
 
 pub use error::{IndexError, Result};
-pub use query::SearchHit;
-pub use rebuild::RebuildStats;
+pub use query::{PageSummary, SearchHit};
+pub use rebuild::{RebuildStats, ReindexOutcome};
 
 /// A handle to the derived index database.
 pub struct Index {
@@ -52,6 +52,29 @@ impl Index {
     /// title.
     pub fn list_children(&self, parent_id: Option<PageId>) -> Result<Vec<PageId>> {
         query::list_children(&self.conn, parent_id)
+    }
+
+    /// Same as `list_children`, but returns the full listing shape (title,
+    /// icon, kind) the page tree/sidebar needs in one query, instead of just
+    /// IDs.
+    pub fn list_children_summaries(&self, parent_id: Option<PageId>) -> Result<Vec<PageSummary>> {
+        query::list_children_summaries(&self.conn, parent_id)
+    }
+
+    /// Re-reads a single page file and updates just its rows in the index —
+    /// the incremental counterpart to `rebuild_all()`. Driven by
+    /// `cobble-watcher`'s `Created`/`Modified` events, and called
+    /// synchronously by write commands right after their own atomic file
+    /// write (see `docs/ARCHITECTURE.md#file-format--storage`'s write path).
+    pub fn reindex_file(&mut self, path: impl AsRef<Path>) -> Result<ReindexOutcome> {
+        rebuild::reindex_file(&mut self.conn, path.as_ref())
+    }
+
+    /// Removes a page file's rows from the index without reading it — for
+    /// `cobble-watcher`'s `Removed` events and write commands that trash a
+    /// page, where the file is already gone by the time this is called.
+    pub fn remove_file(&mut self, path: impl AsRef<Path>) -> Result<()> {
+        rebuild::remove_file(&mut self.conn, path.as_ref())
     }
 
     /// Pages whose reserved `date` property falls within `[start, end]`
@@ -297,6 +320,129 @@ mod tests {
             serde_json::from_str::<DatabaseSchema>(&schema_json).unwrap(),
             db.database_schema.unwrap()
         );
+    }
+
+    #[test]
+    fn reindex_file_picks_up_a_newly_created_page_without_a_full_rebuild() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut index = Index::open_in_memory().unwrap();
+        index.rebuild_all(dir.path()).unwrap();
+        assert!(index.list_children(None).unwrap().is_empty());
+
+        let page = Page::new("Late Arrival");
+        write_page(dir.path(), &page);
+        let path = dir
+            .path()
+            .join(format!("late-arrival-{}.cobble.json", page.id));
+
+        let outcome = index.reindex_file(&path).unwrap();
+        assert_eq!(outcome, ReindexOutcome::Indexed);
+        assert_eq!(index.list_children(None).unwrap(), vec![page.id]);
+    }
+
+    #[test]
+    fn reindex_file_updates_rows_in_place_for_a_modified_page() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut page = Page::new("Draft Title");
+        write_page(dir.path(), &page);
+        let path = dir
+            .path()
+            .join(format!("draft-title-{}.cobble.json", page.id));
+
+        let mut index = Index::open_in_memory().unwrap();
+        index.rebuild_all(dir.path()).unwrap();
+
+        page.title = "Final Title".to_string();
+        page.blocks
+            .push(Block::new(BlockType::Paragraph).with_text("new content"));
+        fs::write(&path, serde_json::to_vec(&page).unwrap()).unwrap();
+
+        index.reindex_file(&path).unwrap();
+
+        let hits = index.search_blocks("content").unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].page_id, page.id);
+
+        let title: String = index
+            .conn
+            .query_row(
+                "SELECT title FROM pages WHERE id = ?1",
+                [page.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(title, "Final Title");
+        // Only one row for this page, not a stale one plus a fresh one.
+        let count: i64 = index
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM pages WHERE id = ?1",
+                [page.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn reindex_file_skips_unreadable_paths_without_erroring() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut index = Index::open_in_memory().unwrap();
+        let outcome = index
+            .reindex_file(dir.path().join("does-not-exist-01ARZ3NDEKTSV4RRFFQ69G5FAV.cobble.json"))
+            .unwrap();
+        assert_eq!(outcome, ReindexOutcome::Skipped);
+    }
+
+    #[test]
+    fn remove_file_deletes_a_removed_pages_rows_using_only_the_filename() {
+        let dir = tempfile::tempdir().unwrap();
+        let parent = Page::new("Journal");
+        write_page(dir.path(), &parent);
+        let mut child = Page::new("Entry");
+        child.parent_id = Some(parent.id);
+        write_page(dir.path(), &child);
+
+        let mut index = Index::open_in_memory().unwrap();
+        index.rebuild_all(dir.path()).unwrap();
+        assert_eq!(index.list_children(Some(parent.id)).unwrap(), vec![child.id]);
+
+        let child_path = dir.path().join(format!("entry-{}.cobble.json", child.id));
+        fs::remove_file(&child_path).unwrap();
+        index.remove_file(&child_path).unwrap();
+
+        assert!(index.list_children(Some(parent.id)).unwrap().is_empty());
+        // The parent (and everything else) is untouched.
+        assert_eq!(index.list_children(None).unwrap(), vec![parent.id]);
+    }
+
+    #[test]
+    fn remove_file_is_a_no_op_for_a_path_that_does_not_match_the_page_file_convention() {
+        let mut index = Index::open_in_memory().unwrap();
+        // Must not panic or error even though this can't map to a page ID.
+        index
+            .remove_file(Path::new("/tmp/not-a-page-file.txt"))
+            .unwrap();
+    }
+
+    #[test]
+    fn list_children_summaries_returns_the_listing_shape() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut db_page = Page::new("Tasks");
+        db_page.kind = PageKind::Database;
+        db_page.icon = Some("clipboard".to_string());
+        write_page(dir.path(), &db_page);
+
+        let mut index = Index::open_in_memory().unwrap();
+        index.rebuild_all(dir.path()).unwrap();
+
+        let summaries = index.list_children_summaries(None).unwrap();
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].id, db_page.id);
+        assert_eq!(summaries[0].title, "Tasks");
+        assert_eq!(summaries[0].icon.as_deref(), Some("clipboard"));
+        assert_eq!(summaries[0].kind, PageKind::Database);
+        assert_eq!(summaries[0].parent_id, None);
     }
 
     #[test]
