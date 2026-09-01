@@ -60,7 +60,8 @@ impl Index {
         query::pages_with_date_between(&self.conn, start, end)
     }
 
-    /// Full-text search over block content (FTS5 match syntax).
+    /// Full-text search over block content. `query` is plain user text —
+    /// never interpreted as FTS5 match syntax, see `query::sanitize_fts5_query`.
     pub fn search_blocks(&self, query: &str) -> Result<Vec<SearchHit>> {
         query::search_blocks(&self.conn, query)
     }
@@ -193,6 +194,41 @@ mod tests {
 
         let no_hits = index.search_blocks("nonexistent").unwrap();
         assert!(no_hits.is_empty());
+    }
+
+    #[test]
+    fn search_blocks_treats_fts5_syntax_as_literal_search_text() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut page = Page::new("Notes");
+        page.blocks
+            .push(Block::new(BlockType::Paragraph).with_text("the quick brown fox"));
+        write_page(dir.path(), &page);
+
+        let mut index = Index::open_in_memory().unwrap();
+        index.rebuild_all(dir.path()).unwrap();
+
+        // None of these contain the word "brown", so a query that actually
+        // parsed them as FTS5 syntax could error out or match everything;
+        // treated as literal words they should just find nothing.
+        for malicious in [
+            "brown\" OR \"1\"=\"1",
+            "AND OR NOT",
+            "NEAR(brown fox)",
+            "br*",
+            "\"",
+            "\"\"\"",
+        ] {
+            let hits = index.search_blocks(malicious).unwrap();
+            assert!(
+                hits.is_empty(),
+                "query {malicious:?} unexpectedly matched: {hits:?}"
+            );
+        }
+
+        // A quote embedded in an otherwise-matching token still finds the
+        // block by its literal words either side of the quote.
+        let hits = index.search_blocks("brown\" fox").unwrap();
+        assert_eq!(hits.len(), 1);
     }
 
     #[test]
