@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["src-tauri", "crates/cobble-core", "crates/cobble-storage", "crates/cobble-index", "crates/cobble-watcher"]
+members = ["src-tauri", "crates/cobble-core", "crates/cobble-storage", "crates/cobble-index", "crates/cobble-watcher", "crates/cobble-plugin-host"]
 
 [workspace.package]
 version = "0.1.0"
