@@ -1,5 +1,5 @@
 use crate::slug::slugify;
-use cobble_core::{Page, PageId};
+use cobble_core::{Page, PageId, PropertyValidationError};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -21,6 +21,12 @@ pub enum StorageError {
     },
     #[error("page {0} not found")]
     PageNotFound(PageId),
+    #[error("page {page} failed database schema validation: {source}")]
+    SchemaValidation {
+        page: PageId,
+        #[source]
+        source: PropertyValidationError,
+    },
 }
 
 /// `<title-slug>-<ulid>.cobble.json` — the full ULID (not a shortened form)
@@ -107,6 +113,51 @@ mod tests {
         page.kind = PageKind::Database;
         let path = dir.path().join(page_file_name(&page.title, page.id));
 
+        write_page_atomic(&path, &page).unwrap();
+        let back = read_page(&path).unwrap();
+
+        assert_eq!(back, page);
+    }
+
+    #[test]
+    fn round_trips_a_populated_database_schema_through_atomic_write() {
+        use cobble_core::{
+            DatabaseSchema, DatabaseView, PropertyDefinition, PropertyType, SelectOption,
+            TagColor, ViewId, ViewKind,
+        };
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut page = Page::new("Tasks");
+        page.kind = PageKind::Database;
+        let mut schema = DatabaseSchema::new(vec![
+            PropertyDefinition::new("Name", PropertyType::Text),
+            PropertyDefinition::new("Count", PropertyType::Number),
+            PropertyDefinition::new("Done", PropertyType::Checkbox),
+            PropertyDefinition::new("Due", PropertyType::Date),
+            PropertyDefinition::new(
+                "Status",
+                PropertyType::Select {
+                    options: vec![
+                        SelectOption::new("Todo", TagColor::Gray),
+                        SelectOption::new("Done", TagColor::Green),
+                    ],
+                },
+            ),
+            PropertyDefinition::new(
+                "Tags",
+                PropertyType::MultiSelect {
+                    options: vec![SelectOption::new("Bug", TagColor::Red)],
+                },
+            ),
+        ]);
+        schema.views.push(DatabaseView {
+            id: ViewId::new(),
+            name: "Board".into(),
+            kind: ViewKind::Board,
+        });
+        page.database_schema = Some(schema);
+
+        let path = dir.path().join(page_file_name(&page.title, page.id));
         write_page_atomic(&path, &page).unwrap();
         let back = read_page(&path).unwrap();
 
