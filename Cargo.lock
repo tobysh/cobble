@@ -85,6 +85,7 @@ version = "0.1.0"
 dependencies = [
  "cobble-core",
  "cobble-index",
+ "cobble-plugin-host",
  "cobble-storage",
  "cobble-watcher",
  "log",

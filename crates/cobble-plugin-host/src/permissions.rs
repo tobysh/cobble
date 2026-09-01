@@ -18,6 +18,16 @@ use crate::manifest::Permissions;
 pub enum Permission {
     ReadPages,
     WritePages,
+    /// The `custom_ui` sandboxed-iframe escape hatch (M5, see
+    /// `docs/ARCHITECTURE.md`'s "Escape hatch" paragraph). This is a
+    /// materially bigger trust boundary than the other permissions here —
+    /// granting it lets a plugin run its own arbitrary HTML/JS inside a
+    /// sandboxed `<iframe sandbox="allow-scripts">` rather than only the
+    /// declarative UI schema — so it gets the same deny-by-default
+    /// enforcement, checked both here (manifest-level: did the plugin
+    /// author declare it at all) and again by the frontend's consent gate
+    /// (did the *user* agree, separately from what the manifest declares).
+    CustomUi,
 }
 
 impl Permission {
@@ -25,6 +35,7 @@ impl Permission {
         match self {
             Permission::ReadPages => permissions.read_pages,
             Permission::WritePages => permissions.write_pages,
+            Permission::CustomUi => permissions.custom_ui,
         }
     }
 }
@@ -96,5 +107,48 @@ mod tests {
         let granted = Granted::new(permissions(false, true));
         assert!(granted.require(Permission::ReadPages).is_err());
         assert!(granted.require(Permission::WritePages).is_ok());
+    }
+
+    fn permissions_with_custom_ui(custom_ui: bool) -> Permissions {
+        Permissions {
+            read_pages: false,
+            write_pages: false,
+            network: Vec::new(),
+            events: Vec::new(),
+            custom_ui,
+        }
+    }
+
+    #[test]
+    fn custom_ui_denied_by_default() {
+        // A manifest with no `[permissions]` table at all (or `custom_ui`
+        // simply absent) parses to `Permissions::default()`, which must not
+        // grant the iframe escape hatch — this is the manifest-level half
+        // of "deny-by-default" for `custom_ui` specifically.
+        let granted = Granted::new(Permissions::default());
+        let err = granted.require(Permission::CustomUi).unwrap_err();
+        assert_eq!(err.permission, Permission::CustomUi);
+    }
+
+    #[test]
+    fn custom_ui_denied_when_manifest_sets_it_false() {
+        let granted = Granted::new(permissions_with_custom_ui(false));
+        assert!(granted.require(Permission::CustomUi).is_err());
+    }
+
+    #[test]
+    fn custom_ui_allowed_when_manifest_grants_it() {
+        let granted = Granted::new(permissions_with_custom_ui(true));
+        assert!(granted.require(Permission::CustomUi).is_ok());
+    }
+
+    #[test]
+    fn custom_ui_is_independent_of_other_permissions() {
+        // Granting `read_pages`/`write_pages` must not incidentally grant
+        // `custom_ui` — it's a materially bigger trust boundary (arbitrary
+        // script execution vs. scoped data access) and is gated separately
+        // on purpose.
+        let granted = Granted::new(permissions(true, true));
+        assert!(granted.require(Permission::CustomUi).is_err());
     }
 }

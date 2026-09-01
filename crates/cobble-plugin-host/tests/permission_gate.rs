@@ -11,8 +11,8 @@
 //! using a numeric-only fixture that sidesteps that same toolchain gap.
 
 use cobble_core::{BlockId, PageId};
-use cobble_plugin_host::manifest::Permissions;
-use cobble_plugin_host::permissions::Granted;
+use cobble_plugin_host::manifest::{Manifest, Permissions};
+use cobble_plugin_host::permissions::{Granted, Permission};
 use cobble_plugin_host::{HostError, HostState, PluginHost};
 
 /// A well-formed (if nonexistent) page/block ID pair, so tests exercise the
@@ -103,6 +103,59 @@ fn get_block_data_permitted_reaches_past_the_permission_check() {
     let result = state.get_block_data(page_id, block_id);
 
     assert_eq!(result, Err(HostError::NotFound));
+}
+
+// `custom_ui` (M5's sandboxed-iframe escape hatch, see
+// `docs/ARCHITECTURE.md`'s "Escape hatch" paragraph) has no WIT-level host
+// function of its own — it isn't something a plugin *calls*, it's a
+// capability the frontend checks before it's willing to mount the iframe at
+// all. That check has to go through the real manifest parser (not a
+// hand-built `Permissions` value) because it's exactly the code path
+// `src-tauri/src/commands/plugins.rs::check_custom_ui_permission` runs on
+// the frontend's behalf — this is what proves that path is deny-by-default
+// end to end, from raw `plugin.toml` text to a granted/denied verdict.
+fn parse_and_check_custom_ui(toml_str: &str) -> Result<(), cobble_plugin_host::permissions::PermissionDenied> {
+    let manifest = Manifest::parse(toml_str).expect("well-formed test manifest");
+    Granted::new(manifest.permissions).require(Permission::CustomUi)
+}
+
+#[test]
+fn custom_ui_denied_when_manifest_omits_the_permissions_table_entirely() {
+    let toml_str = r#"
+        [plugin]
+        id = "no-permissions-plugin"
+        name = "No Permissions"
+        version = "0.1.0"
+    "#;
+    assert!(parse_and_check_custom_ui(toml_str).is_err());
+}
+
+#[test]
+fn custom_ui_denied_when_manifest_explicitly_sets_it_false() {
+    let toml_str = r#"
+        [plugin]
+        id = "explicit-false-plugin"
+        name = "Explicit False"
+        version = "0.1.0"
+
+        [permissions]
+        custom_ui = false
+    "#;
+    assert!(parse_and_check_custom_ui(toml_str).is_err());
+}
+
+#[test]
+fn custom_ui_allowed_only_when_manifest_explicitly_grants_it() {
+    let toml_str = r#"
+        [plugin]
+        id = "custom-ui-plugin"
+        name = "Custom UI"
+        version = "0.1.0"
+
+        [permissions]
+        custom_ui = true
+    "#;
+    assert!(parse_and_check_custom_ui(toml_str).is_ok());
 }
 
 #[test]

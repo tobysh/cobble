@@ -1,0 +1,147 @@
+/*
+  Styles for CustomUiFrame / CustomUiConsentPrompt (the `custom_ui` iframe
+  escape hatch — see docs/ARCHITECTURE.md's "Escape hatch" paragraph). Per
+  CLAUDE.md: no raw hex/hsl/rgb here — everything resolves through
+  theme/tokens.css's semantic tokens. This file styles the app's own chrome
+  around the plugin's iframe (the consent prompt, the blocked placeholder,
+  the frame's own box) — it never reaches inside the iframe itself, whose
+  contents are the plugin's own untrusted markup and are explicitly *not*
+  covered by this file's token discipline (see CustomUiFrame.tsx's
+  EXPOSED_THEME_TOKENS comment).
+*/
+
+.custom-ui-frame {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+}
+
+.custom-ui-blocked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+
+.custom-ui-blocked-text {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.custom-ui-blocked-button {
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.custom-ui-blocked-button:hover {
+  background: var(--bg-surface-hover);
+}
+
+.custom-ui-consent-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.custom-ui-consent-panel {
+  width: 440px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--bg-glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glass);
+}
+
+.custom-ui-consent-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.custom-ui-consent-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.custom-ui-consent-body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.custom-ui-consent-plugin-id {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.custom-ui-consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.custom-ui-consent-button {
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.custom-ui-consent-button--deny {
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.custom-ui-consent-button--deny:hover {
+  background: var(--bg-surface-hover);
+}
+
+.custom-ui-consent-button--allow {
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.custom-ui-consent-button--allow:hover {
+  background: var(--danger-soft);
+  filter: brightness(1.08);
+}
