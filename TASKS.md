@@ -18,7 +18,7 @@ Status values: `todo` · `claimed` · `in-progress` · `blocked` · `done`
 
 | Task | Status | Owner / branch | Notes |
 |---|---|---|---|
-| `cobble-core`: `Page`/`Block` domain types | todo | | |
+| `cobble-core`: `Page`/`Block` domain types | in-progress | main (solo session) | |
 | `cobble-storage`: file format read/write, atomic writes, ULID IDs | todo | | |
 | `cobble-index`: SQLite schema + `rebuild_all()` | todo | | |
 | `cobble-watcher`: FS watch → incremental reindex | todo | | |

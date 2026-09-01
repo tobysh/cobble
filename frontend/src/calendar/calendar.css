@@ -1,0 +1,118 @@
+.calendar-view {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 48px 120px;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.calendar-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.calendar-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-hairline);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+.calendar-nav button:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+.calendar-today {
+  width: auto !important;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-bottom: 6px;
+}
+.calendar-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+  position: relative;
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    transform 220ms ease;
+}
+.calendar-cell:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-strong);
+  transform: scale(1.04);
+}
+.calendar-cell:active {
+  transform: scale(0.98);
+  transition-duration: 80ms;
+}
+.calendar-cell--empty {
+  visibility: hidden;
+  cursor: default;
+}
+.calendar-cell--today {
+  border-color: var(--accent);
+}
+.calendar-cell--today .calendar-date {
+  color: var(--accent);
+  font-weight: 700;
+}
+.calendar-cell--has-note {
+  background: var(--accent-soft);
+}
+.calendar-note-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.calendar-add {
+  display: flex;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.calendar-cell:hover .calendar-add {
+  opacity: 1;
+}

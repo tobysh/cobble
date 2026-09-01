@@ -1,0 +1,184 @@
+/*
+  Semantic design tokens. Per CLAUDE.md: no raw hex/hsl/rgb anywhere else in the
+  app — every color used by a component must resolve through one of these.
+  Three themes: "light" and "dark" mirror Notion's palettes (colored tags,
+  real accent hue); "night" is strict off-black/off-white monochrome, zero hue
+  except the shared --danger accent.
+*/
+
+:root {
+  /* ---- Light (default values, overridden per data-theme below) ---- */
+  --bg-canvas: #ffffff;
+  --bg-surface: #f7f7f5;
+  --bg-surface-hover: #efefec;
+  --bg-glass: rgba(255, 255, 255, 0.72);
+  --bg-glass-border: rgba(15, 15, 15, 0.08);
+  --border-hairline: rgba(15, 15, 15, 0.09);
+  --border-strong: rgba(15, 15, 15, 0.16);
+
+  --text-primary: #191919;
+  --text-secondary: #6b6b68;
+  --text-tertiary: #9b9b97;
+  --text-on-accent: #ffffff;
+
+  --selection-bg: rgba(35, 131, 226, 0.18);
+  --focus-ring: rgba(35, 131, 226, 0.55);
+
+  --accent: #2383e2;
+  --accent-hover: #1c6fc4;
+  --accent-soft: rgba(35, 131, 226, 0.12);
+
+  --danger: #a13a2f;
+  --danger-soft: rgba(161, 58, 47, 0.12);
+
+  --code-bg: #f4f3ec;
+  --code-text: #af4c19;
+
+  --tag-red: #e03e3e;
+  --tag-red-soft: rgba(224, 62, 62, 0.14);
+  --tag-orange: #d9730d;
+  --tag-orange-soft: rgba(217, 115, 13, 0.14);
+  --tag-yellow: #cb912f;
+  --tag-yellow-soft: rgba(203, 145, 47, 0.16);
+  --tag-green: #448361;
+  --tag-green-soft: rgba(68, 131, 97, 0.14);
+  --tag-blue: #337ea9;
+  --tag-blue-soft: rgba(51, 126, 169, 0.14);
+  --tag-purple: #9065b0;
+  --tag-purple-soft: rgba(144, 101, 176, 0.14);
+  --tag-pink: #c14c8a;
+  --tag-pink-soft: rgba(193, 76, 138, 0.14);
+
+  --shadow-1: 0 1px 2px rgba(15, 15, 15, 0.08);
+  --shadow-2: 0 4px 12px rgba(15, 15, 15, 0.1);
+  --shadow-glass: 0 8px 32px rgba(15, 15, 15, 0.18);
+
+  --radius-sm: 6px;
+  --radius-md: 9px;
+  --radius-lg: 14px;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, system-ui,
+    sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+
+  --blur-glass: 18px;
+
+  color-scheme: light;
+}
+
+/* ---- Dark (Notion-mirrored) ---- */
+:root[data-theme='dark'] {
+  --bg-canvas: #191919;
+  --bg-surface: #202020;
+  --bg-surface-hover: #2b2b2b;
+  --bg-glass: rgba(32, 32, 32, 0.7);
+  --bg-glass-border: rgba(255, 255, 255, 0.08);
+  --border-hairline: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-primary: #e9e9e7;
+  --text-secondary: #9b9b98;
+  --text-tertiary: #6f6f6c;
+  --text-on-accent: #ffffff;
+
+  --selection-bg: rgba(45, 148, 220, 0.28);
+  --focus-ring: rgba(70, 165, 235, 0.6);
+
+  --accent: #4ba3e3;
+  --accent-hover: #6cb6ea;
+  --accent-soft: rgba(75, 163, 227, 0.16);
+
+  --danger: #d1685a;
+  --danger-soft: rgba(209, 104, 90, 0.16);
+
+  --code-bg: #2a2a2a;
+  --code-text: #e5a76a;
+
+  --tag-red: #eb7a6f;
+  --tag-red-soft: rgba(235, 122, 111, 0.18);
+  --tag-orange: #e5a458;
+  --tag-orange-soft: rgba(229, 164, 88, 0.18);
+  --tag-yellow: #d9c15b;
+  --tag-yellow-soft: rgba(217, 193, 91, 0.18);
+  --tag-green: #6bb894;
+  --tag-green-soft: rgba(107, 184, 148, 0.18);
+  --tag-blue: #6cb6e0;
+  --tag-blue-soft: rgba(108, 182, 224, 0.18);
+  --tag-purple: #b294d1;
+  --tag-purple-soft: rgba(178, 148, 209, 0.18);
+  --tag-pink: #d789ae;
+  --tag-pink-soft: rgba(215, 137, 174, 0.18);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}
+
+/* ---- Night (strict off-black/off-white monochrome) ---- */
+:root[data-theme='night'] {
+  --gray-0: #050505;
+  --gray-1: #0d0d0d;
+  --gray-2: #141414;
+  --gray-3: #1b1b1b;
+  --gray-4: #242424;
+  --gray-5: #333333;
+  --gray-6: #4a4a4a;
+  --gray-7: #6b6b6b;
+  --gray-8: #8f8f8f;
+  --gray-9: #b3b3b3;
+  --gray-10: #d4d4d4;
+  --gray-11: #ececec;
+  --gray-12: #fafafa;
+
+  --bg-canvas: var(--gray-0);
+  --bg-surface: var(--gray-1);
+  --bg-surface-hover: var(--gray-3);
+  --bg-glass: rgba(13, 13, 13, 0.7);
+  --bg-glass-border: rgba(255, 255, 255, 0.08);
+  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-9);
+  --text-tertiary: var(--gray-7);
+  --text-on-accent: var(--gray-0);
+
+  --selection-bg: rgba(255, 255, 255, 0.14);
+  --focus-ring: rgba(255, 255, 255, 0.4);
+
+  /* Night stays zero-hue except the one reserved danger accent. */
+  --accent: var(--gray-12);
+  --accent-hover: var(--gray-10);
+  --accent-soft: rgba(255, 255, 255, 0.1);
+
+  --danger: #b3554a;
+  --danger-soft: rgba(179, 85, 74, 0.18);
+
+  --code-bg: var(--gray-2);
+  --code-text: var(--gray-10);
+
+  /* No hue for tags in Night — grayscale ramp stands in for color-coding. */
+  --tag-red: var(--gray-11);
+  --tag-red-soft: var(--gray-3);
+  --tag-orange: var(--gray-10);
+  --tag-orange-soft: var(--gray-3);
+  --tag-yellow: var(--gray-10);
+  --tag-yellow-soft: var(--gray-3);
+  --tag-green: var(--gray-9);
+  --tag-green-soft: var(--gray-3);
+  --tag-blue: var(--gray-9);
+  --tag-blue-soft: var(--gray-3);
+  --tag-purple: var(--gray-8);
+  --tag-purple-soft: var(--gray-3);
+  --tag-pink: var(--gray-8);
+  --tag-pink-soft: var(--gray-3);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.65);
+
+  color-scheme: dark;
+}
