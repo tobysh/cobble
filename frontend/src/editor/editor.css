@@ -172,6 +172,58 @@
   transform: rotate(45deg);
 }
 
+/* Drag-to-reorder gutter. One handle per top-level block, absolutely
+   positioned against `.page-blocks` from live DOM rects (this editor is one
+   Lexical document, not a list of per-block components, so there's no block
+   wrapper element to anchor a handle to directly — see PageView.tsx). */
+.block-gutter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.block-drag-handle {
+  position: absolute;
+  left: -22px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: grab;
+  opacity: 0;
+  pointer-events: auto;
+  transition:
+    opacity 0.1s ease,
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+.page-blocks:hover .block-drag-handle {
+  opacity: 1;
+}
+.block-drag-handle:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-secondary);
+}
+.block-drag-handle--dragging {
+  opacity: 1;
+  cursor: grabbing;
+  color: var(--accent);
+}
+.block-drag-handle svg circle {
+  fill: currentColor;
+}
+.block-drop-indicator {
+  position: absolute;
+  left: -22px;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
 /* Slash command menu */
 .slash-menu {
   position: absolute;
