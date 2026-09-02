@@ -42,7 +42,13 @@ function PageTreeItem({ pageId, depth }: { pageId: string; depth: number }) {
             toggleExpanded(pageId)
           }}
         >
-          <ChevronRight size={13} style={{ transform: expanded ? 'rotate(90deg)' : undefined, transition: 'transform 140ms ease' }} />
+          <ChevronRight
+            size={13}
+            style={{
+              transform: expanded ? 'rotate(90deg)' : undefined,
+              transition: 'transform var(--duration-hover) var(--ease-hover)',
+            }}
+          />
         </span>
         <span className="tree-icon">{page.icon}</span>
         <span className="tree-title">{page.title}</span>
@@ -123,7 +129,13 @@ export function Sidebar() {
           onClick={() => void createPage(null, 'Untitled')}
         >
           <span className="tree-caret tree-caret--hidden" />
-          <Plus size={14} style={{ opacity: newPageHover ? 1 : 0.6 }} />
+          <Plus
+            size={14}
+            style={{
+              opacity: newPageHover ? 1 : 0.6,
+              transition: 'opacity var(--duration-hover) var(--ease-hover)',
+            }}
+          />
           <span className="tree-title tree-title--muted">New page</span>
         </button>
       </nav>
